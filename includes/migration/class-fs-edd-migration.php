@@ -1032,7 +1032,7 @@
 			 *
 			 * Also allow migration of a lifetime license with a subscription.
 			 */
-			$purchase['license_expires_at'] = $this->get_local_license_expiration();
+			$subscription['license_expires_at'] = $this->get_local_license_expiration();
 
 			if ( $this->is_sandbox_subscription() ) {
 				$subscription['is_sandbox'] = true;
