@@ -450,7 +450,7 @@
 		 *
 		 * @return array
 		 */
-		protected function get_customer_address_for_api() {
+		private function get_customer_address_for_api() {
 			$user_info = $this->_edd_payment->user_info;
 
 			$address = array(
@@ -508,7 +508,7 @@
 		 *
 		 * @return array
 		 */
-		protected function get_payment_gross_and_tax_for_api( EDD_Payment $edd_payment ) {
+		private function get_payment_gross_and_tax_for_api( EDD_Payment $edd_payment ) {
 			$gross_and_vat = array();
 
 			if ( isset( $edd_payment->cart_details ) &&
@@ -556,7 +556,7 @@
 		 *
 		 * @return string|null
 		 */
-		protected function get_local_license_expiration() {
+		private function get_local_license_expiration() {
 			$license_expiration = self::$_edd_sl->get_license_expiration( $this->_edd_license->ID );
 
 			if ( 'lifetime' === $license_expiration ) {
@@ -594,7 +594,7 @@
 		 *
 		 * @return string|false
 		 */
-		protected function get_customer_ip() {
+		private function get_customer_ip() {
 			// Try to get IP from initial payment.
 			if ( ! empty( $this->_edd_payment->ip ) ) {
 				return $this->_edd_payment->ip;
@@ -647,7 +647,7 @@
 		 *
 		 * @return bool
 		 */
-		protected function local_is_sandbox_purchase() {
+		private function local_is_sandbox_purchase() {
 			return ( 'live' !== $this->_edd_payment->mode );
 		}
 
@@ -659,7 +659,7 @@
 		 *
 		 * @return string
 		 */
-		protected function get_local_purchase_gateway() {
+		private function get_local_purchase_gateway() {
 			/**
 			 * 1. Freemius doesn't have the concept of Test ("manual") gateway.
 			 * 2. Freemius only have PayPal or CreditCard options at the moment.
@@ -677,7 +677,7 @@
 		 *
 		 * @return string
 		 */
-		protected function get_local_subscription_gateway() {
+		private function get_local_subscription_gateway() {
 			return $this->get_local_purchase_gateway();
 		}
 
@@ -689,7 +689,7 @@
 		 *
 		 * @return bool
 		 */
-		protected function is_sandbox_subscription() {
+		private function is_sandbox_subscription() {
 			return $this->local_is_sandbox_purchase();
 		}
 
@@ -701,7 +701,7 @@
 		 *
 		 * @return int
 		 */
-		protected function get_local_billing_cycle_in_months() {
+		private function get_local_billing_cycle_in_months() {
 			switch ( $this->_edd_subscription->period ) {
 				case 'day':
 				case 'week':
@@ -770,7 +770,7 @@
 		 *
 		 * @return string
 		 */
-		protected function get_edd_canonized_site_home_url( $url = '' ) {
+		private function get_edd_canonized_site_home_url( $url = '' ) {
 			if ( empty( $url ) ) {
 				$url = ! empty( $this->_edd_install_data['url'] ) ?
 					$this->_edd_install_data['url'] :
