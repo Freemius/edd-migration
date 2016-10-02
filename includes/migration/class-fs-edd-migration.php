@@ -294,9 +294,9 @@
 		 *   3. When EDD SL is installed but it's a legacy license that is NOT associated
 		 *      with variable price, find the price ID based on the license activations limit,
 		 *      and use "{download->id}:{price->id}".
-		 *
-		 * @todo   If the license activation quota is different from all the quotas in the
-		 *         variable prices do ??????????????
+		 *      If the license activation quota is different from all the quotas in the prices
+		 *      then use the first price ID in the variable prices. The quota will be explicitly
+		 *      set using the `license_quota` API param.
 		 *
 		 * @author Vova Feldman
 		 * @since  1.0.0
@@ -321,11 +321,22 @@
 					$edd_license_activations_limit = self::$_edd_sl->get_license_limit( $this->_edd_download->ID,
 						$this->_edd_license->ID );
 
+					$price_found = false;
 					foreach ( $edd_prices as $id => $edd_price ) {
-						if ( $edd_license_activations_limit == (int) $edd_price['license_limit'] ) {
+						if ( $edd_license_activations_limit == $edd_price['license_limit'] ) {
 							$price_id = $id;
+							$price_found = true;
 							break;
 						}
+					}
+
+					if ( ! $price_found ) {
+						/**
+						 * If license limit isn't matching any of the prices, use the first
+						 * price ID.
+						 */
+						reset( $edd_prices );
+						$price_id = key( $edd_prices );
 					}
 				}
 			}
@@ -816,6 +827,23 @@
 			return false;
 		}
 
+		/**
+		 * Get license quota. If unlimited license, return NULL.
+		 *
+		 * @author Vova Feldman
+		 * @since  1.0.0
+		 *
+		 * @return int|null
+		 */
+		private function get_license_quota() {
+			$quota = (int) self::$_edd_sl->get_license_limit(
+				$this->_edd_download->ID,
+				$this->_edd_license->ID
+			);
+
+			return ( $quota > 0 ) ? $quota : null;
+		}
+
 		#endregion
 
 		/**
@@ -941,6 +969,7 @@
 			$purchase['payment_method']       = $this->get_local_purchase_gateway();
 			$purchase['customer_external_id'] = 'edd_customer_' . $this->_edd_customer->id;
 			$purchase['license_key']          = self::$_edd_sl->get_license_key( $this->_edd_license->ID ); // Preserve the same keys.
+			$purchase['license_quota']        = $this->get_license_quota(); // Preserve license activations limit.
 			$purchase['processed_at']         = $this->get_payment_process_date( $this->_edd_payment );
 			$purchase['payment_external_id']  = $this->_edd_payment->transaction_id;
 
@@ -995,6 +1024,7 @@
 			$subscription['next_payment']             = $this->_edd_subscription->get_expiration();
 			$subscription['processed_at']             = $this->_edd_subscription->created;
 			$subscription['license_key']              = self::$_edd_sl->get_license_key( $this->_edd_license->ID ); // Preserve the same keys.
+			$subscription['license_quota']            = $this->get_license_quota(); // Preserve license activations limit.
 
 			/**
 			 * Set license expiration for cases when the subscription's next
