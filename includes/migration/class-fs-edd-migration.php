@@ -324,7 +324,7 @@
 					$price_found = false;
 					foreach ( $edd_prices as $id => $edd_price ) {
 						if ( $edd_license_activations_limit == $edd_price['license_limit'] ) {
-							$price_id = $id;
+							$price_id    = $id;
 							$price_found = true;
 							break;
 						}
@@ -737,6 +737,22 @@
 		}
 
 		/**
+		 * Get EDD payment's transaction ID. If empty, use "edd_payment_{payment_id}".
+		 *
+		 * @author Vova Feldman
+		 * @since  1.0.0
+		 *
+		 * @param EDD_Payment $edd_payment
+		 *
+		 * @return string
+		 */
+		private function get_payment_transaction_id( EDD_Payment $edd_payment ) {
+			return ! empty( $edd_payment->transaction_id ) ?
+				$edd_payment->transaction_id :
+				'edd_payment_' . $edd_payment->ID;
+		}
+
+		/**
 		 * Get payment data for API.
 		 *
 		 * @author Vova Feldman
@@ -749,13 +765,10 @@
 		private function get_payment_by_edd_for_api( EDD_Payment $edd_payment ) {
 			$payment                        = array();
 			$payment['processed_at']        = $this->get_payment_process_date( $edd_payment );
-			$payment['payment_external_id'] = ! empty( $edd_payment->transaction_id ) ?
-				$edd_payment->transaction_id :
-				'edd_payment_' . $edd_payment->ID;
+			$payment['payment_external_id'] = $this->get_payment_transaction_id( $edd_payment );
 
 			$payment = array_merge( $payment, $this->get_payment_gross_and_tax_for_api( $edd_payment ) );
-
-
+			
 			return $payment;
 		}
 
@@ -971,7 +984,7 @@
 			$purchase['license_key']          = self::$_edd_sl->get_license_key( $this->_edd_license->ID ); // Preserve the same keys.
 			$purchase['license_quota']        = $this->get_license_quota(); // Preserve license activations limit.
 			$purchase['processed_at']         = $this->get_payment_process_date( $this->_edd_payment );
-			$purchase['payment_external_id']  = $this->_edd_payment->transaction_id;
+			$purchase['payment_external_id']  = $this->get_payment_transaction_id( $this->_edd_payment );
 
 			// Set license expiration if not a lifetime license via a purchase.
 			$license_expiration = $this->get_local_license_expiration();
