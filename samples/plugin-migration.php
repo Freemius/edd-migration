@@ -1,9 +1,9 @@
 <?php
 	// This should point to your EDD install.
-	define( 'MY__EDD_STORE_URL', 'http://easydigitaldownloads.com' ); // you should use your own CONSTANT name, and be sure to replace it throughout this file
+	define( 'MY__EDD_STORE_URL', 'https://your-edd-store.com' ); // you should use your own CONSTANT name, and be sure to replace it throughout this file
 
-	// The name of your product. This should match the download name in EDD exactly.
-	define( 'MY__EDD_ITEM_NAME', 'My Awesome Plugin' ); // you should use your own CONSTANT name, and be sure to replace it throughout this file
+	// The EDD download ID of your product.
+	define( 'MY__EDD_DOWNLOAD_ID', '12345' ); // you should use your own CONSTANT name, and be sure to replace it throughout this file
 
 	/**
 	 * @var \Freemius $fs
@@ -37,7 +37,7 @@
 		$install_details = $my_fs->get_opt_in_params();
 
 		// Override is_premium flat because it's a paid license migration.
-		$install_details['is_premium']     = true;
+		$install_details['is_premium'] = true;
 		// The plugin is active for sure and not uninstalled.
 		$install_details['is_active']      = true;
 		$install_details['is_uninstalled'] = false;
@@ -47,17 +47,20 @@
 		unset( $install_details['account_url'] );
 
 
-		// Call the custom API.
-		$response = wp_remote_post( MY__EDD_STORE_URL, array_merge( $install_details, array(
-			'timeout'   => 15,
-			'sslverify' => false,
-			'body'      => array_merge( $install_details, array(
-				'fs_action'   => 'migrate_license',
-				'license_key' => $license_key,
-				'item_name'   => urlencode( MY__EDD_ITEM_NAME ),
-				'url'         => home_url()
+		// Call the custom license and account migration endpoint.
+		// @todo Add some caching to prevent bombing the API.
+		$response = wp_remote_post(
+			MY__EDD_STORE_URL . '/fs-api/edd/migrate-license.json',
+			array_merge( $install_details, array(
+				'timeout'   => 15,
+				'sslverify' => false,
+				'body'      => array_merge( $install_details, array(
+					'license_key' => $license_key,
+					'item_id'     => MY__EDD_DOWNLOAD_ID,
+					'url'         => home_url()
+				) )
 			) )
-		) ) );
+		);
 
 		// make sure the response came back okay
 		if ( is_wp_error( $response ) || 200 !== wp_remote_retrieve_response_code( $response ) ) {
@@ -68,7 +71,21 @@
 				__( 'An error occurred, please try again.' );
 
 		} else {
+			if ( ! is_object( $response ) ||
+			     isset( $response->success ) ||
+			     true !== $response->success
+			) {
+				// Failed to pull account information.
+				return false;
+			}
 
+			$my_fs->setup_account(
+				new FS_User( $response->data->user ),
+				new FS_Site( $response->data->install ),
+				false
+			);
+
+			return true;
 		}
 	}
 
