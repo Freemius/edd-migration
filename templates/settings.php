@@ -6,23 +6,97 @@
 	 * @since       1.0.0
 	 */
 
+	if ( ! defined( 'ABSPATH' ) ) {
+		exit;
+	}
+
 	/**
-	 * @var FS_Webhook $webhook
+	 * @var FS_Migration_Endpoint_Abstract $endpoint
 	 */
-	$webhook = $VARS['webhook'];
+	$endpoint = $VARS['endpoint'];
 
-	$developer    = $webhook->get_developer();
-	$is_connected = $webhook->is_connected();
-
-	$migration = FS_EDD_Migration_Endpoint::instance();
+	$developer    = $endpoint->get_developer();
+	$is_connected = $endpoint->is_connected();
 
 	wp_enqueue_style( WP_FSM__SLUG . '/settings',
 		plugins_url( plugin_basename( WP_FSM__DIR_CSS . '/' . trim( 'admin/settings.css', '/' ) ) ) );
 
 ?>
 <div class="wrap">
-	<h2><?php printf( __fs( 'freemius-x-settings' ), WP_FS__COMMERCE_NAME ) ?></h2>
+	<h2><?php printf( __fs( 'freemius-x-settings' ), WP_FS__NAMESPACE_EDD ) ?></h2>
 
+	<?php if ( $is_connected ) : ?>
+		<table class="form-table">
+			<tbody>
+			<tr>
+				<th><h3><?php _efs( 'all-products' ) ?></h3></th>
+				<td>
+					<hr>
+				</td>
+			</tr>
+			</tbody>
+		</table>
+		<table id="fs_modules" class="widefat">
+			<thead>
+			<tr>
+				<th style="width: 1px"></th>
+				<th><?php _efs( 'Name' ) ?></th>
+				<th><?php _efs( 'Slug' ) ?></th>
+				<th><?php _efs( 'Local ID' ) ?></th>
+				<th><?php _efs( 'FS ID' ) ?></th>
+				<th><?php _efs( 'FS Plan ID' ) ?></th>
+				<th></th>
+			</tr>
+			</thead>
+			<tbody>
+			<?php
+				$local_modules            = $endpoint->get_all_local_modules_for_settings();
+				$synced_local_modules     = array();
+				$not_synced_local_modules = array();
+
+				foreach ( $local_modules as $local_module ) {
+					$module_id = $endpoint->get_remote_module_id( $local_module->id );
+
+					if ( false !== $module_id ) {
+						$synced_local_modules[] = $local_module;
+					} else {
+						$not_synced_local_modules[] = $local_module;
+					}
+				}
+
+				$local_modules = $synced_local_modules + $not_synced_local_modules;
+			?>
+
+			<?php foreach ( $local_modules as $local_module ) : ?>
+				<?php $module_id = $endpoint->get_remote_module_id( $local_module->id ) ?>
+				<?php $is_synced = is_numeric( $module_id ) ?>
+				<tr data-local-module-id="<?php echo $local_module->id ?>"
+				    class="<?php echo $is_synced ? 'fs--synced' : '' ?>">
+					<td><i class="dashicons dashicons-yes"></i></td>
+					<td><?php echo $local_module->title ?></td>
+					<td><?php echo $local_module->slug ?></td>
+					<td><?php echo $local_module->id ?></td>
+					<?php if ( $is_synced ) : ?>
+						<td class="fs--module-id"><?php echo $module_id ?></td>
+						<td class="fs--paid-plan-id"><?php
+								$remote_plan_id = $endpoint->get_remote_paid_plan_id( $local_module->id );
+								echo ( false !== $remote_plan_id ) ? $remote_plan_id : '';
+							?></td>
+						<td>
+							<button class="button"><?php _efs( 'Resync' ) ?></button>
+						</td>
+					<?php else : ?>
+						<td class="fs--module-id"></td>
+						<td class="fs--paid-plan-id"></td>
+						<td style="text-align: right">
+							<button class="button button-primary"><?php _efs( 'Sync to Freemius' ) ?></button>
+						</td>
+					<?php endif ?>
+				</tr>
+			<?php endforeach ?>
+			</tbody>
+		</table>
+	<?php endif ?>
 	<?php if ( ! $is_connected ) : ?>
 		<p><?php printf(
 				__fs( 'api-instructions' ),
@@ -32,7 +106,6 @@
 				)
 			) ?></p>
 	<?php endif ?>
-
 	<form method="post" action="">
 		<input type="hidden" name="fs_action" value="save_settings">
 		<?php wp_nonce_field( 'save_settings' ) ?>
@@ -73,68 +146,6 @@
 				echo ' button-primary';
 			} ?>" value="<?php _efs( $is_connected ? 'edit-settings' : 'save-changes' ) ?>"/></p>
 	</form>
-	<?php if ( $is_connected ) : ?>
-		<table id="fs_modules" class="widefat">
-			<thead>
-			<tr>
-				<th style="width: 1px"></th>
-				<th><?php _efs( 'Name' ) ?></th>
-				<th><?php _efs( 'Slug' ) ?></th>
-				<th><?php _efs( 'Local ID' ) ?></th>
-				<th><?php _efs( 'FS ID' ) ?></th>
-				<th><?php _efs( 'FS Plan ID' ) ?></th>
-				<th></th>
-			</tr>
-			</thead>
-			<tbody>
-			<?php
-				$downloads            = $migration->get_all_local_products();
-				$synced_downloads     = array();
-				$not_synced_downloads = array();
-
-				foreach ( $downloads as $local_module ) {
-					$module_id = $migration->get_remote_module_id( $local_module->id );
-
-					if ( false !== $module_id ) {
-						$synced_downloads[] = $local_module;
-					} else {
-						$not_synced_downloads[] = $local_module;
-					}
-				}
-
-				$downloads = $synced_downloads + $not_synced_downloads;
-			?>
-
-			<?php foreach ( $downloads as $local_module ) : ?>
-				<?php $module_id = $migration->get_remote_module_id( $local_module->id ) ?>
-				<?php $is_synced = is_numeric( $module_id ) ?>
-				<tr data-local-module-id="<?php echo $local_module->id ?>"
-				    class="<?php echo $is_synced ? 'fs--synced' : '' ?>">
-					<td><i class="dashicons dashicons-yes"></i></td>
-					<td><?php echo $local_module->title ?></td>
-					<td><?php echo $local_module->slug ?></td>
-					<td><?php echo $local_module->id ?></td>
-					<?php if ( $is_synced ) : ?>
-						<td class="fs--module-id"><?php echo $module_id ?></td>
-						<td class="fs--paid-plan-id"><?php
-								$remote_plan_id = $migration->get_remote_paid_plan_id( $local_module->id );
-								echo ( false !== $remote_plan_id ) ? $remote_plan_id : '';
-							?></td>
-						<td>
-							<button class="button"><?php _efs( 'Resync' ) ?></button>
-						</td>
-					<?php else : ?>
-						<td class="fs--module-id"></td>
-						<td class="fs--paid-plan-id"></td>
-						<td style="text-align: right">
-							<button class="button button-primary"><?php _efs( 'Sync to Freemius' ) ?></button>
-						</td>
-					<?php endif ?>
-				</tr>
-			<?php endforeach ?>
-			</tbody>
-		</table>
-	<?php endif ?>
 </div>
 <script>
 	(function ($) {
