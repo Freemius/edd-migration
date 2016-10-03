@@ -22,8 +22,8 @@
 		define( 'WP_FSM__MAIN_ENDPOINT', 'fs-api' );
 	}
 
-	if ( ! defined( 'WP_FS__COMMERCE_NAME' ) ) {
-		define( 'WP_FS__COMMERCE_NAME', 'EDD' );
+	if ( ! defined( 'WP_FS__NAMESPACE_EDD' ) ) {
+		define( 'WP_FS__NAMESPACE_EDD', 'EDD' );
 	}
 
 	if ( ! defined( 'WP_FS__IS_PRODUCTION_MODE' ) ) {
@@ -109,6 +109,7 @@
 	define( 'WP_FSM__DIR', dirname( __FILE__ ) );
 	define( 'WP_FSM__DIR_INCLUDES', WP_FSM__DIR . '/includes' );
 	define( 'WP_FSM__DIR_ENTITIES', WP_FSM__DIR . '/includes/entities' );
+	define( 'WP_FSM__DIR_MIGRATION', WP_FSM__DIR . '/includes/migration' );
 	define( 'WP_FSM__DIR_TEMPLATES', WP_FSM__DIR . '/templates' );
 	define( 'WP_FSM__DIR_ASSETS', WP_FSM__DIR . '/assets' );
 	define( 'WP_FSM__DIR_CSS', WP_FSM__DIR_ASSETS . '/css' );

@@ -93,7 +93,7 @@
 		#--------------------------------------------------------------------------------
 
 		private function __construct( $license_id ) {
-			$this->init( 'edd' );
+			$this->init( WP_FS__NAMESPACE_EDD );
 
 			$this->load_edd_entities( $license_id );
 		}

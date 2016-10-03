@@ -51,7 +51,7 @@
 			$module,
 			EDD_Download $download
 		) {
-			$this->init( 'edd', $developer, $module );
+			$this->init( WP_FS__NAMESPACE_EDD, $developer, $module );
 
 			$this->_edd_download = $download;
 
