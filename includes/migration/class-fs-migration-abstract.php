@@ -587,7 +587,15 @@
 			if ( self::is_api_error( $result ) ) {
 				// Do something.
 				if ( $exception_on_error ) {
-					throw new Exception( var_export( $result, true ) );
+					if ( isset( $result->error ) ) {
+						throw new FS_Endpoint_Exception(
+							'Freemius migration error: ' . $result->error->message,
+							$result->error->code,
+							$result->error->http
+						);
+					} else {
+						throw new FS_Endpoint_Exception( 'Freemius migration error: ' . var_export( $result, true ) );
+					}
 				}
 			}
 
