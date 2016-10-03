@@ -1,0 +1,22 @@
+POST /fs-api/edd/migrate-license.json?XDEBUG_SESSION_START=19003 HTTP/1.1
+Host: my.edd-store.com
+Content-Type: application/json
+Cache-Control: no-cache
+Postman-Token: 06b7c720-18a1-aa22-55c6-38d2f58ba835
+
+{
+	"license_key”:”abcdefghijklmnopqrstuvwxyz123456”,
+	“module_id":25,
+	"url":"http:\/\/test.freemius.com",
+	"site_url":"http:\/\/test.freemius.com",
+	"plugin_version”:”1.2.3”,
+	"site_uid":"abcdefghijklmnopqrstuvwxyz123456",
+	"site_name":"Freemius Test",
+	"platform_version":"4.6.1",
+	"php_version":"5.5.10",
+	"language":"en-US",
+	"charset":"UTF-8",
+	"is_premium":true,
+	"is_active":true,
+	"is_uninstalled":false
+}
