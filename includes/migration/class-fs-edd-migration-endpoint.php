@@ -46,7 +46,7 @@
 				$params = array(
 //					'fs_action'        => 'migrate_license',
 					'license_key'      => $license_key,
-					'item_id'          => $download_id,
+					'module_id'        => $download_id,
 					'url'              => $url,
 					'site_url'         => $url,
 					'plugin_version'   => '1.2.1',
@@ -242,9 +242,9 @@
 		 */
 		protected function validate_params() {
 			// Require download ID.
-			$this->require_unsigned_int( 'download_id' );
+			$this->require_unsigned_int( 'module_id' );
 
-			$download_id = $this->get_param( 'download_id' );
+			$download_id = $this->get_param( 'module_id' );
 			$license_key = $this->get_param( 'license_key' );
 			$url         = $this->get_param( 'url' );
 

@@ -55,8 +55,8 @@
 				'timeout'   => 15,
 				'sslverify' => false,
 				'body'      => array_merge( $install_details, array(
+					'module_id'   => MY__EDD_DOWNLOAD_ID,
 					'license_key' => $license_key,
-					'item_id'     => MY__EDD_DOWNLOAD_ID,
 					'url'         => home_url()
 				) )
 			) )
