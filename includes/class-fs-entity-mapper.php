@@ -1,7 +1,7 @@
 <?php
 	/**
-	 * @package     Freemius for EDD Add-On
-	 * @copyright   Copyright (c) 2015, Freemius, Inc.
+	 * @package     Freemius Migration
+	 * @copyright   Copyright (c) 2016, Freemius, Inc.
 	 * @license     http://opensource.org/licenses/gpl-2.0.php GNU Public License
 	 * @since       1.0.0
 	 */
@@ -44,6 +44,8 @@
 		 * @return FS_Entity_Mapper
 		 */
 		public static function instance( $namespace ) {
+			$namespace = strtolower($namespace);
+
 			if ( ! isset( self::$_instances[ $namespace ] ) ) {
 				self::$_instances[ $namespace ] = new FS_Entity_Mapper( $namespace );
 			}

@@ -17,10 +17,6 @@
 		exit;
 	}
 
-	if ( ! defined( 'FS__EDD_MIGRATION_VERSION' ) ) {
-		define( 'FS__EDD_MIGRATION_VERSION', '3.4.9' );
-	}
-
 	function fs_edd_migration_init() {
 		if ( ! class_exists( 'Easy_Digital_Downloads' ) ||
 		     ! class_exists( 'EDD_Software_Licensing' )
@@ -39,7 +35,7 @@
 		require_once __DIR__ . '/start.php';
 
 		// Load migration module.
-		require_once __DIR__ . '/includes/migration/class-fs-edd-migration-endpoint.php';
+		require_once WP_FSM__DIR_MIGRATION . '/class-fs-edd-migration-endpoint.php';
 	}
 
 	// Get Freemius EDD Migration running.
