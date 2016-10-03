@@ -483,35 +483,44 @@
 		 *
 		 * @author Vova Feldman
 		 * @since  1.0.0
+		 *
+		 * @param array|null $test_request_data Special parameter for local testing.
 		 */
-		public function maybe_process_api_request() {
-			if ( is_admin() ) {
-				// Endpoint isn't part of /wp-admin/...
-				return;
+		public function maybe_process_api_request( $test_request_data = null ) {
+			if ( is_array( $test_request_data ) && ! empty( $test_request_data ) ) {
+				// Use testing request data.
+				$request_data = $test_request_data;
+			} else {
+				if ( is_admin() ) {
+					// Endpoint isn't part of /wp-admin/...
+					return;
+				}
+
+				if ( defined( 'WP_FSM__MIGRATION_DOING_API_REQUEST' ) ) {
+					// Already running in API migration.
+					return;
+				}
+
+				if ( ! $this->is_api_request() ) {
+					// Request path isn't matching the migration endpoint.
+					return;
+				}
+
+				require_once WP_FSM__DIR_INCLUDES . '/class-fs-endpoint-exception.php';
+
+				define( 'WP_FSM__MIGRATION_DOING_API_REQUEST', true );
+
+				// Retrieve the request body and parse it as JSON.
+				$input = @file_get_contents( "php://input" );
+
+				$request_data = json_decode( $input, true );
 			}
 
-			if ( defined( 'WP_FSM__MIGRATION_DOING_API_REQUEST' ) ) {
-				// Already running in API migration.
-				return;
+			if ( ! is_array( $request_data ) ) {
+				$request_data = array();
 			}
 
-			if ( ! $this->is_api_request() ) {
-				// Request path isn't matching the migration endpoint.
-				return;
-			}
-
-			define( 'WP_FSM__MIGRATION_DOING_API_REQUEST', true );
-
-			// Retrieve the request body and parse it as JSON.
-			$input = @file_get_contents( "php://input" );
-
-			$data = json_decode( $input, true );
-
-			if ( ! is_array( $data ) ) {
-				$data = array();
-			}
-
-			$this->_request_data = $data;
+			$this->_request_data = $request_data;
 
 			try {
 

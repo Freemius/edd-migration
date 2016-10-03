@@ -34,37 +34,8 @@
 
 			$this->init( WP_FS__NAMESPACE_EDD );
 
-			if ( ! defined( 'DOING_AJAX' ) ) {
-//				return false;
-
-//				$this->migrate_license_by_id( 71336 );
-
-				$url         = 'http://test9.freemius.com';
-				$download_id = 25;
-				$license_key = '74062bc8b9cc256823f8f08d0f8feedf';
-
-				$params = array(
-//					'fs_action'        => 'migrate_license',
-					'license_key'      => $license_key,
-					'module_id'        => $download_id,
-					'url'              => $url,
-					'site_url'         => $url,
-					'plugin_version'   => '1.2.1',
-					'site_uid'         => $this->get_anonymous_id( $url ),
-					'site_name'        => 'Freemius Test',
-					'platform_version' => get_bloginfo( 'version' ),
-					'php_version'      => phpversion(),
-					'language'         => get_bloginfo( 'language' ),
-					'charset'          => get_bloginfo( 'charset' ),
-					'is_premium'       => true,
-					'is_active'        => true,
-					'is_uninstalled'   => false,
-				);
-
-				$decoded = json_encode( $params );
-
-				$x = 1;
-//				$this->migrate_install_license( $params );
+			if ( false && ! defined( 'DOING_AJAX' ) ) {
+				$this->test_full_migration();
 			}
 		}
 
@@ -93,6 +64,36 @@
 			$migration->do_migrate_license();
 		}
 
+		/**
+		 * Test full install's license migration.
+		 *
+		 * @author   Vova Feldman (@svovaf)
+		 * @since    1.0.0
+		 */
+		private function test_full_migration() {
+			$url         = 'http://test9.freemius.com';
+			$download_id = 25;
+			$license_key = '74062bc8b9cc256823f8f08d0f8feedf';
+
+			$params = array(
+				'license_key'      => $license_key,
+				'module_id'        => $download_id,
+				'url'              => $url,
+				'site_url'         => $url,
+				'plugin_version'   => '1.2.1',
+				'site_uid'         => $this->get_anonymous_id( $url ),
+				'site_name'        => 'Freemius Test',
+				'platform_version' => get_bloginfo( 'version' ),
+				'php_version'      => phpversion(),
+				'language'         => get_bloginfo( 'language' ),
+				'charset'          => get_bloginfo( 'charset' ),
+				'is_premium'       => true,
+				'is_active'        => true,
+				'is_uninstalled'   => false,
+			);
+
+			$this->maybe_process_api_request( $params );
+		}
 
 		#endregion
 
