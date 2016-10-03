@@ -32,6 +32,11 @@
 		protected $_api;
 
 		/**
+		 * @var array
+		 */
+		protected $_request_data;
+
+		/**
 		 * @var FS_Entity_Mapper
 		 */
 		protected $_entity_mapper;
@@ -421,7 +426,7 @@
 		}
 
 		#--------------------------------------------------------------------------------
-		#region Local Store Endpoint
+		#region Local Store's Endpoint
 		#--------------------------------------------------------------------------------
 
 		/**
@@ -453,14 +458,24 @@
 			}
 		}
 
-		protected function validate_all_params( array $data ) {
-			if ( false ) {
-				$this->shoot_json_failure(
-					'whatever error message'
-				);
-			}
-
-			$this->validate_params( $data );
+		/**
+		 * Get API request parameter or return $default if not set.
+		 *
+		 * @author Vova Feldman
+		 * @since  1.0.0
+		 *
+		 * @param string $name
+		 * @param bool   $default
+		 *
+		 * @return mixed
+		 */
+		protected function get_param( $name, $default = false ) {
+			return isset( $this->_request_data[ $name ] ) ?
+				( is_string( $this->_request_data[ $name ] ) ?
+					urldecode( $this->_request_data[ $name ] ) :
+					$this->_request_data[ $name ]
+				) :
+				$default;
 		}
 
 		/**
@@ -496,10 +511,175 @@
 				$data = array();
 			}
 
-			$this->validate_all_params( $data );
+			$this->_request_data = $data;
 
-			$this->migrate_license_remote( $data );
+			try {
+
+				$this->enrich_optional_params_with_defaults();
+
+				$this->validate_all_params();
+
+				$account = $this->migrate_install_license();
+
+				$this->shoot_json_success( $account );
+			} catch ( FS_Endpoint_Exception $e ) {
+				// Shoot API failure.
+				$this->shoot_json_failure( $e->getMessage() );
+			}
 		}
+
+		#--------------------------------------------------------------------------------
+		#region API Request Params Validation
+		#--------------------------------------------------------------------------------
+
+		/**
+		 * Make sure given params are set in the API request.
+		 *
+		 * If any of the params is missing, the endpoint will throw an exception.
+		 *
+		 * @author Vova Feldman
+		 * @since  1.0.0
+		 *
+		 * @param array $params
+		 *
+		 * @throws FS_Endpoint_Exception
+		 */
+		protected function require_params( array $params ) {
+			foreach ( $params as $p ) {
+				if ( ! isset( $this->_request_data[ $p ] ) ) {
+					throw new FS_Endpoint_Exception( "{$p} is a required parameter." );
+				}
+			}
+		}
+
+		/**
+		 * Make sure given params are set and not empty in the API request.
+		 *
+		 * If any of the params is empty, the endpoint will throw an exception.
+		 *
+		 * @author Vova Feldman
+		 * @since  1.0.0
+		 *
+		 * @param array $params
+		 *
+		 * @throws FS_Endpoint_Exception
+		 */
+		protected function require_non_empty_params( array $params ) {
+			foreach ( $params as $p ) {
+				if ( empty( $this->_request_data[ $p ] ) ) {
+					throw new FS_Endpoint_Exception( "{$p} cannot be empty." );
+				}
+			}
+		}
+
+		/**
+		 * Make sure an API request parameter is unsigned integer.
+		 *
+		 * @author Vova Feldman
+		 * @since  1.0.0
+		 *
+		 * @param string $name
+		 *
+		 * @throws FS_Endpoint_Exception
+		 */
+		protected function require_unsigned_int( $name ) {
+			$this->require_params( array( $name ) );
+
+			if ( is_int( $this->_request_data[ $name ] ) &&
+			     $this->_request_data[ $name ] > 0
+			) {
+				// Unsigned integer.
+				return;
+			}
+
+			if ( ! is_numeric( $this->_request_data[ $name ] ) ||
+			     ! ctype_digit( $this->_request_data[ $name ] )
+			) {
+				throw new FS_Endpoint_Exception( "{$name} must be unsigned integer." );
+			}
+		}
+
+		/**
+		 * Validate common required params.
+		 *
+		 * @author Vova Feldman
+		 * @since  1.0.0
+		 *
+		 * @throws FS_Endpoint_Exception
+		 */
+		protected function validate_all_params() {
+			$this->require_params( array(
+				// License key.
+				'license_key',
+				// Install details.
+				'site_url',
+				'plugin_version',
+				'is_premium',
+				'site_uid',
+				'site_name',
+				'language',
+				'charset',
+				'platform_version',
+				'php_version',
+			) );
+
+			$this->require_non_empty_params( array(
+				// License key.
+				'license_key',
+				// Install details.
+				'site_url',
+				'plugin_version',
+			) );
+
+			$this->validate_params();
+		}
+
+		/**
+		 * Enrich request's optional params with default values.
+		 *
+		 * @author Vova Feldman
+		 * @since  1.0.0
+		 */
+		protected function enrich_optional_params_with_defaults() {
+			$defaults = array(
+				// Assume premium code migration.
+				'is_premium'     => true,
+				// Assume module is installed and active.
+				'is_uninstalled' => false,
+				'is_active'      => true,
+			);
+
+			foreach ( $defaults as $k => $v ) {
+				if ( ! isset( $this->_request_data[ $k ] ) ) {
+					$this->_request_data[ $k ] = $v;
+				}
+			}
+
+			if ( empty( $this->_request_data['url'] ) ) {
+				// Attempt to grab the URL from the user agent if no URL is specified
+				$domain = array_map( 'trim', explode( ';', $_SERVER['HTTP_USER_AGENT'] ) );
+				if ( 1 < count( $domain ) ) {
+					$url = trim( $domain[1] );
+				} else {
+					// If URL is missing and can't fetch from user agent, use required 'site_url' instead.
+					$url = $this->get_param( 'site_url' );
+				}
+
+				$this->_request_data['url'] = $url;
+			}
+		}
+
+		/**
+		 * Should validate platform specific required params.
+		 *
+		 * @author Vova Feldman
+		 * @since  1.0.0
+		 *
+		 * @throws FS_Endpoint_Exception
+		 */
+		abstract protected function validate_params();
+
+		#endregion
 
 		#endregion
 
@@ -715,7 +895,21 @@
 
 		#endregion
 
-		abstract protected function migrate_license_remote( array $data );
-
-		abstract protected function validate_params( array $data );
+		/**
+		 * Should migrate install's license and return FS account's data (user + install).
+		 *
+		 * Result looks like:
+		 *  array(
+		 *      'install' => FS_Install,
+		 *      'user' => FS_User,
+		 *  )
+		 *
+		 * @author Vova Feldman
+		 * @since  1.0.0
+		 *
+		 * @return array
+		 *
+		 * @throws FS_Endpoint_Exception
+		 */
+		abstract protected function migrate_install_license();
 	}

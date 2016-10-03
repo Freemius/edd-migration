@@ -64,7 +64,7 @@
 				$decoded = json_encode( $params );
 
 				$x = 1;
-//				$this->migrate_license_remote( $params );
+//				$this->migrate_install_license( $params );
 			}
 		}
 
@@ -202,8 +202,67 @@
 
 		#endregion
 
-		private function is_valid_license_request( $edd_license_state ) {
+		/**
+		 * Migrate install's license and return FS account's data (user + install).
+		 *
+		 * @author Vova Feldman
+		 * @since  1.0.0
+		 *
+		 * @return array
+		 *
+		 * @throws FS_Endpoint_Exception
+		 */
+		protected function migrate_install_license() {
+			require_once WP_FSM__DIR_INCLUDES . '/migration/class-fs-migration-abstract.php';
+			require_once WP_FSM__DIR_INCLUDES . '/migration/class-fs-edd-migration.php';
+
+			$license_id = edd_software_licensing()->get_license_by_key( $this->get_param( 'license_key' ) );
+
+			$migration = FS_EDD_Migration::instance( $license_id );
+			$migration->set_api( $this->get_api() );
+
+			// Migrate customer, purchase/subscription, billing and license.
+			$customer = $migration->do_migrate_license();
+
+			// Migrate plugin installation.
+			return $migration->do_migrate_install( $this->_request_data, $customer );
+		}
+
+		#--------------------------------------------------------------------------------
+		#region API Request Params Validation
+		#--------------------------------------------------------------------------------
+
+		/**
+		 * Validate EDD download license parameters.
+		 *
+		 * @author Vova Feldman
+		 * @since  1.0.0
+		 *
+		 * @throws FS_Endpoint_Exception
+		 */
+		protected function validate_params() {
+			// Require download ID.
+			$this->require_unsigned_int( 'download_id' );
+
+			$download_id = $this->get_param( 'download_id' );
+			$license_key = $this->get_param( 'license_key' );
+			$url         = $this->get_param( 'url' );
+
+			// Get EDD license state.
+			$edd_license_state = edd_software_licensing()->check_license( array(
+				'item_id'   => $download_id,
+				'item_name' => '',
+				'key'       => $license_key,
+				'url'       => $url,
+			) );
+
 			switch ( $edd_license_state ) {
+				case 'invalid':
+					// Invalid license key.
+					throw new FS_Endpoint_Exception( "Invalid license key ({$license_key})." );
+				case 'invalid_item_id':
+					// Invalid download ID.
+					throw new FS_Endpoint_Exception( "Invalid download ID ({$download_id})." );
 				/**
 				 * Migrate expired license since all EDD licenses are not blocking.
 				 */
@@ -240,87 +299,21 @@
 					 * License is valid and activated for the context site.
 					 */
 				case 'valid':
-					$is_valid_request = true;
 					break;
-				case 'invalid':
-				case 'invalid_item_id':
 				case 'item_name_mismatch':
+					/**
+					 * This use case should never happen since we check the license state
+					 * based on the EDD download ID, not the name.
+					 */
+					break;
 				default:
-					$is_valid_request = false;
+					// Unexpected license state. This case should never happen.
+					throw new FS_Endpoint_Exception( 'Unexpected EDD download license state.' );
 					break;
 			}
-
-			return $is_valid_request;
 		}
 
-		protected function migrate_license_remote( array $data ) {
-			$edd_sl = edd_software_licensing();
-
-			$item_id     = ! empty( $data['item_id'] ) ? absint( $data['item_id'] ) : false;
-			$item_name   = ! empty( $data['item_name'] ) ? rawurldecode( $data['item_name'] ) : false;
-			$license_key = ! empty( $data['license_key'] ) ? urldecode( $data['license_key'] ) : false;
-			$url         = isset( $data['url'] ) ? urldecode( $data['url'] ) : '';
-
-			if ( empty( $url ) ) {
-				// Attempt to grab the URL from the user agent if no URL is specified
-				$domain = array_map( 'trim', explode( ';', $_SERVER['HTTP_USER_AGENT'] ) );
-				if ( 1 < count( $domain ) ) {
-					$url = trim( $domain[1] );
-				}
-			}
-
-			$args = array(
-				'item_id'   => $item_id,
-				'item_name' => $item_name,
-				'key'       => $license_key,
-				'url'       => $url,
-			);
-
-			$result = $edd_sl->check_license( $args );
-
-			if ( $this->is_valid_license_request( $result ) ) {
-				require_once WP_FSM__DIR_INCLUDES . '/migration/class-fs-migration-abstract.php';
-				require_once WP_FSM__DIR_INCLUDES . '/migration/class-fs-edd-migration.php';
-
-				$license_id = $edd_sl->get_license_by_key( $args['key'] );
-
-				$migration = FS_EDD_Migration::instance( $license_id );
-				$migration->set_api( $this->get_api() );
-
-				// Migrate customer, purchase/subscription, billing and license.
-				$customer = $migration->do_migrate_license();
-
-				// Migrate plugin installation.
-				$account = $migration->do_migrate_install( $data, $customer );
-
-				$this->shoot_json_success(
-					array_merge( $account, array(
-						'license' => $result,
-					) )
-				);
-			} else {
-				$this->shoot_json_failure(
-					'',
-					array( 'license' => $result, )
-				);
-			}
-		}
-
-		#--------------------------------------------------------------------------------
-		#region API Endpoint
-		#--------------------------------------------------------------------------------
-
-		// @todo Add validation.
-		protected function validate_params( array $data ) {
-			if ( false ) {
-				$this->shoot_json_failure(
-					'whatever error message'
-				);
-			}
-		}
-
-
-		#endregion API Endpoint
+		#endregion
 	}
 
 	/**
