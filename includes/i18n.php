@@ -36,7 +36,7 @@
 		'congrats-x'           => _x( 'Congrats %s', 'as congratulations', 'freemius' ),
 		'woot'                 => _x( 'W00t',
 			'(especially in electronic communication) used to express elation, enthusiasm, or triumph.', 'freemius' ),
-		'api-instructions'     => __( 'To obtain your developer\'s ID and keys, please %s, click on the right side menu and open "My Profile".',
+		'api-instructions'     => __( 'To obtain your developer\'s ID and keys, please %s, click on the right side menu and open "My Profile". There, scroll to the bottom to get your credentials.',
 			'freemius' ),
 		'login-to-fs'          => __( 'login to
 			Freemius', 'freemius' ),

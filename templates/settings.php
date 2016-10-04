@@ -212,9 +212,9 @@
 					$moduleID.html(result.data.module_id);
 					$paidPlanID.html(result.data.plan_id);
 
-					alert('W00t W00t! Module was successfully synced to Freemius. Check your Freemius Dashboard and you should be able to see all the data.');
+					alert('<?php _e('W00t W00t! Module was successfully synced to Freemius. Refresh your Freemius Dashboard and you should be able to see all the data.', 'freemius') ?>');
 				} else {
-					alert('Oops... Something went wrong during the data sync, please try again in few min.');
+					alert('<?php _e('Oops... Something went wrong during the data sync, please try again in few min.', 'freemius' ) ?>');
 				}
 
 				// Recover button's label.
