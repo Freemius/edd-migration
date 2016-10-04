@@ -477,6 +477,7 @@
 			if ( 'GET' !== $method ) {
 				// Hint that API that it's a migration mode.
 				$params['is_migration'] = true;
+				$params['source']       = $this->_namespace;
 			}
 
 			return self::get_api()->call( $path, $method, $params );

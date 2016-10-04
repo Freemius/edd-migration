@@ -41,6 +41,13 @@
 		 */
 		private $_logger;
 
+		/**
+		 * @since 1.0.0
+		 *
+		 * @var string
+		 */
+		private $_namespace;
+
 		#--------------------------------------------------------------------------------
 		#region Init
 		#--------------------------------------------------------------------------------
@@ -55,6 +62,7 @@
 		 * @param string $namespace
 		 */
 		protected function init( $namespace ) {
+			$this->_namespace     = $namespace;
 			$this->_entity_mapper = FS_Entity_Mapper::instance( $namespace );
 		}
 
@@ -553,6 +561,7 @@
 			if ( 'GET' !== strtoupper( $method ) ) {
 				// Hint that API that it's a migration mode.
 				$params['is_migration'] = true;
+				$params['source']       = $this->_namespace;
 			}
 
 			return self::get_api()->call( $this->get_api_path( $path ), $method, $params );
