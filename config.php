@@ -117,7 +117,7 @@
 	define( 'WP_FSM__DIR_SDK', WP_FSM__DIR_INCLUDES . '/sdk' );
 
 	if ( ! defined( 'WP_FS__DIR_SDK' ) ) {
-		define( 'WP_FS__DIR_SDK', WP_FSM__DIR . '/sdk' );
+		define( 'WP_FS__DIR_SDK', WP_FSM__DIR_INCLUDES . '/sdk' );
 	}
 
 

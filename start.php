@@ -1,11 +1,21 @@
 <?php
 	if ( ! function_exists( '__fs' ) ) {
 		// Load essentials.
-		require_once WP_FSM__DIR_INCLUDES . '/fs-essential-functions.php';
+		require_once __DIR__ . '/includes/fs-essential-functions.php';
 	}
 
 	// Load config file.
 	require_once __DIR__ . '/config.php';
+
+	if (!class_exists('FS_Logger')) {
+		require_once WP_FSM__DIR_INCLUDES . '/class-fs-logger.php';
+	}
+
+	if (!function_exists('fs_request_is_action')) {
+		require_once WP_FSM__DIR_INCLUDES . '/fs-core-functions.php';
+	}
+
+//	require_once WP_FSM__DIR_INCLUDES . '/debug/debug-bar-start.php';
 
 	// Register entities auto loader.
 	spl_autoload_register( function ( $class ) {

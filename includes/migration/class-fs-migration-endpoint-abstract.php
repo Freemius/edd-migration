@@ -10,6 +10,13 @@
 		exit;
 	}
 
+	if ( ! class_exists( 'FS_Cache_Manager' ) ) {
+		require_once WP_FSM__DIR_INCLUDES . '/managers/class-fs-cache-manager.php';
+	}
+	if ( ! class_exists( 'FS_Api' ) ) {
+		require_once WP_FSM__DIR_INCLUDES . '/class-fs-api.php';
+	}
+
 	abstract class FS_Migration_Endpoint_Abstract {
 		/**
 		 * @var string
