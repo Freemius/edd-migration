@@ -101,16 +101,26 @@
 		function do_sync( $flush = false ) {
 			$this->log( "Starting to sync {$this->_module->title}...\n------------------------------------------------------------------------------------\n" );
 
-			if ( false === $this->sync_module( $flush ) ) {
+			$result = $this->sync_module( $flush );
+
+			if ( false === $result ) {
 				$this->log_failure( "Failed to sync module to Freemius. Skipping..." );
 
 				return false;
 			}
 
-			if ( false === $this->sync_free_plan( $flush ) ) {
-				$this->log_failure( "Failed to sync module's free plan to Freemius. Skipping..." );
+			if ( $result instanceof FS_Plugin ) {
+				/**
+				 * Module was created in the current execution,
+				 * therefore, if a free plan is locally exist,
+				 * it was already created with the module creation.
+				 */
+			} else {
+				if ( false === $this->sync_free_plan( $flush ) ) {
+					$this->log_failure( "Failed to sync module's free plan to Freemius. Skipping..." );
 
-				return false;
+					return false;
+				}
 			}
 
 			if ( false === $this->sync_paid_plan( $flush ) ) {
