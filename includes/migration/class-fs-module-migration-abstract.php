@@ -633,6 +633,8 @@
 				$this->log( "Free plan already exist on Freemius ({$plan->id}), just link it with the local one ({$local_free_plan_id})." );
 			}
 
+			$free_plan_id = $plan->id;
+
 			$this->link_entity( $plan, $local_free_plan_id );
 
 			$this->log( "Successfully linked free plan ({$local_free_plan_id}) to Freemius free plan ({$plan->id})." );
