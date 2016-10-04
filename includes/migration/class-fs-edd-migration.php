@@ -768,7 +768,7 @@
 			$payment['payment_external_id'] = $this->get_payment_transaction_id( $edd_payment );
 
 			$payment = array_merge( $payment, $this->get_payment_gross_and_tax_for_api( $edd_payment ) );
-			
+
 			return $payment;
 		}
 
@@ -952,16 +952,18 @@
 
 			$address = $this->get_customer_address_for_api();
 
-			if ( ! empty( $address['country_code'] ) ) {
-				$vat['country_code'] = $address['country_code'];
+			if ( ! empty( $address['address_country_code'] ) ) {
+				$vat['country_code'] = $address['address_country_code'];
 			}
 
 			if ( class_exists( '\lyquidity\edd_vat\Actions' ) ) {
-				// @todo Add VAT country code.
-
 				if ( ! empty( $this->_edd_customer->user_id ) ) {
-					$vat['vat_id'] = \lyquidity\edd_vat\Actions::instance()->get_vat_number( '',
+					$vat_id = \lyquidity\edd_vat\Actions::instance()->get_vat_number( '',
 						$this->_edd_customer->user_id );
+
+					if ( ! empty( $vat_id ) ) {
+						$vat['vat_id'] = $vat_id;
+					}
 				}
 			}
 
