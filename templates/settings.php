@@ -64,7 +64,7 @@
 					}
 				}
 
-				$local_modules = $synced_local_modules + $not_synced_local_modules;
+				$local_modules = array_merge($synced_local_modules, $not_synced_local_modules);
 			?>
 
 			<?php foreach ( $local_modules as $local_module ) : ?>
@@ -224,23 +224,6 @@
 
 			return false;
 		});
-
-		//		$('#fs_regenerate').click(function () {
-		//			// Show loading.
-		//			$(this).html('<?php //_efs( 'fetching-token' ) ?>//');
-		//
-		//			$.post(ajaxurl, {
-		//				action: 'fs_get_secure_token'
-		//			}, function (token) {
-		//				$('#fs_token').val(token);
-		//				$('#fs_endpoint').val('<?php //echo site_url( WP_FS__WEBHOOK_ENDPOINT ) ?>///?token=' + token);
-		//
-		//				// Recover button's label.
-		//				$('#fs_regenerate').html('<?php //_efs( 'regenerate' ) ?>//');
-		//			});
-		//
-		//			return false;
-		//		});
 	})
 	(jQuery);
 </script>
