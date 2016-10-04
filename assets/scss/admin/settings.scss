@@ -1,0 +1,72 @@
+@import "../start";
+
+#fs_modules {
+    max-width: 800px;
+
+    .dashicons {
+        vertical-align: middle;
+    }
+
+    th {
+        white-space: nowrap;
+    }
+
+    tr {
+        @include transition(0.3 all ease-in-out);
+    }
+
+    tr {
+        td:first-of-type {
+            .dashicons {
+                @include opacity(0);
+                @include transition(0.3 all ease-in-out);
+            }
+        }
+
+        &.fs--synced {
+            td {
+                //            background: #E6EE9C;
+                background: lighten($fs-logo-green-color, 50%);
+
+                &:first-of-type {
+                    .dashicons {
+                        @include opacity(1);
+                    }
+                }
+            }
+        }
+
+        &.fs--syncing {
+            td {
+                background: #eee;
+            }
+
+            button:after {
+                content: '';
+                background: url('/wp-admin/images/spinner.gif') no-repeat;
+                display: block;
+                width: 20px;
+                height: 20px;
+                vertical-align: middle;
+                position: absolute;
+                left: 5px;
+                top: 3px;
+            }
+        }
+    }
+
+    tr td:last-of-type {
+        text-align: right;
+    }
+
+    tr td:first-of-type {
+        width: 1px;
+    }
+
+    button {
+        width: 100%;
+        display: block;
+        text-align: center;
+        position: relative;
+    }
+}
