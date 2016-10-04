@@ -107,15 +107,15 @@
 		 * @author Vova Feldman (@svovaf)
 		 * @since  1.0.0
 		 *
-		 * @param mixed $local_module
+		 * @param EDD_Download $local_module
 		 *
 		 * @return FS_Plugin
 		 */
 		protected function local_to_remote_module( $local_module ) {
 			$module        = new FS_Plugin();
-			$module->id    = $local_module->ID;
+			$module->id    = $local_module->get_ID();
 			$module->slug  = $local_module->post_name;
-			$module->title = $local_module->post_title;
+			$module->title = $local_module->get_name();
 
 			return $module;
 		}
