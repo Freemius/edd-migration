@@ -13,14 +13,16 @@
 	 * IMPORTANT:
 	 *  You should use your own function name, and be sure to replace it throughout this file.
 	 *
-	 * @param int    $edd_download_id
-	 * @param string $edd_license_key
+	 * @author   Vova Feldman (@svovaf)
+	 * @since    1.0.0
 	 *
-	 * @param        $edd_store_url
+	 * @param int    $edd_download_id The context EDD download ID (from your store).
+	 * @param string $edd_license_key The current site's EDD license key.
+	 * @param string $edd_store_url   Your EDD store URL.
 	 *
 	 * @return bool
 	 */
-	function do_my_freemius_license_migration(
+	function do_my_edd2fs_license_migration(
 		$edd_download_id,
 		$edd_license_key,
 		$edd_store_url
@@ -107,28 +109,41 @@
 		}
 	}
 
-
-	function spawn_my_freemius_license_migration( $edd_download_id ) {
+	/**
+	 * Initiate a non-blocking HTTP POST request to the same URL
+	 * as the current page, with the addition of "fsm_edd_{$edd_download_id}"
+	 * param in the query string that is set to a unique migration
+	 * request identifier, making sure only one request will make
+	 * the migration.
+	 *
+	 * @author   Vova Feldman (@svovaf)
+	 * @since    1.0.0
+	 *
+	 * @param int $edd_download_id The context EDD download ID (from your store).
+	 *
+	 * @return bool Is successfully spawned the migration request.
+	 */
+	function spawn_my_edd2fs_license_migration( $edd_download_id ) {
 		global $wp;
 
 		#region Make sure only one request handles the migration (prevent race condition)
 
 		// Generate unique md5.
-		$unique_migration_id = md5( rand() . microtime() );
+		$migration_uid = md5( rand() . microtime() );
 
-		$loaded_unique_migration_id = false;
+		$loaded_migration_uid = false;
 
 		/**
 		 * Use `fs_add_transient()` instead of `set_transient()` because
 		 * we only want that one request will succeed writing this
 		 * option to the storage.
 		 */
-		if ( fs_add_transient( 'fsm_edd_' . $edd_download_id, $unique_migration_id ) ) {
-			$loaded_unique_migration_id = fs_get_transient( 'fsm_edd_' . $edd_download_id );
+		if ( fs_add_transient( 'fsm_edd_' . $edd_download_id, $migration_uid ) ) {
+			$loaded_migration_uid = fs_get_transient( 'fsm_edd_' . $edd_download_id );
 		}
 
-		if ( $unique_migration_id !== $loaded_unique_migration_id ) {
-			return;
+		if ( $migration_uid !== $loaded_migration_uid ) {
+			return false;
 		}
 
 		#endregion
@@ -136,7 +151,7 @@
 		$current_url   = add_query_arg( $wp->query_string, '', home_url( $wp->request ) );
 		$migration_url = add_query_arg(
 			'fsm_edd_' . $edd_download_id,
-			$unique_migration_id,
+			$migration_uid,
 			$current_url
 		);
 
@@ -148,9 +163,28 @@
 				'sslverify' => false,
 			)
 		);
+
+		return true;
 	}
 
-	function my_maybe_migrate_license(
+	/**
+	 * Run non blocking migration if all of the following (AND condition):
+	 *  1. Has API connectivity to api.freemius.com
+	 *  2. User isn't yet identified with Freemius.
+	 *  3. Freemius is in "activation mode".
+	 *  4. It's a plugin version upgrade.
+	 *  5. It's the first installation of the context plugin that have Freemius integrated with.
+	 *
+	 * @author   Vova Feldman (@svovaf)
+	 * @since    1.0.0
+	 *
+	 * @param int    $edd_download_id The context EDD download ID (from your store).
+	 * @param string $edd_license_key The current site's EDD license key.
+	 * @param string $edd_store_url   Your EDD store URL.
+	 *
+	 * @return string|bool
+	 */
+	function my_non_blocking_edd2fs_license_migration(
 		$edd_download_id,
 		$edd_license_key,
 		$edd_store_url
@@ -162,40 +196,47 @@
 
 		if ( ! $fs->has_api_connectivity() ) {
 			// No connectivity to Freemius API, it's up to you what to do.
-			return;
+			return 'no_connectivity';
 		}
 
 		if ( $fs->is_registered() ) {
 			// User already identified by the API.
-			return;
+			return 'user_registered';
 		}
 
-		if ( ! $fs->is_activation_mode() ||
-		     ! $fs->is_plugin_upgrade_mode()
-		) {
-			// Plugin isn't in Freemius activation mode and not in plugin upgrade mode.
-			return;
+		if ( ! $fs->is_activation_mode() ) {
+			// Plugin isn't in Freemius activation mode.
+			return 'not_in_activation';
+		}
+		if ( ! $fs->is_plugin_upgrade_mode() ) {
+			// Plugin isn't in plugin upgrade mode.
+			return 'not_in_upgrade';
 		}
 
 		if ( ! $fs->is_first_freemius_powered_version() ) {
 			// It's not the 1st version of the plugin that runs with Freemius.
-			return;
+			return 'freemius_installed_before';
 		}
 
-		$uid = fs_get_transient( 'fsm_edd_' . $edd_download_id );
+		$migration_uid = fs_get_transient( 'fsm_edd_' . $edd_download_id );
 
-		$in_migration = ( false !== $uid );
+		$in_migration = ( false !== $migration_uid );
 
 		if ( ! $in_migration ) {
 			// Initiate license migration in a non-blocking request.
-			spawn_my_freemius_license_migration( $edd_download_id );
+			return spawn_my_edd2fs_license_migration( $edd_download_id );
 		} else {
-			if ( $uid === get_query_var( 'fsm_edd_' . $edd_download_id, false ) &&
+			if ( $migration_uid === get_query_var( 'fsm_edd_' . $edd_download_id, false ) &&
 			     'POST' === $_SERVER['REQUEST_METHOD']
 			) {
-				if ( do_my_freemius_license_migration( $edd_download_id, $edd_license_key, $edd_store_url ) ) {
+				$success = do_my_edd2fs_license_migration( $edd_download_id, $edd_license_key, $edd_store_url );
+				if ( $success ) {
 					$fs->set_plugin_upgrade_complete();
+
+					return 'success';
 				}
+
+				return 'failed';
 			}
 		}
 	}
@@ -270,7 +311,7 @@
 		if ( empty( $license_key ) ) {
 			// No license key, therefore, no migration required.
 		} else {
-			my_maybe_migrate_license(
+			my_non_blocking_edd2fs_license_migration(
 				MY__EDD_DOWNLOAD_ID,
 				$license_key,
 				MY__EDD_STORE_URL
