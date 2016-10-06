@@ -249,6 +249,11 @@
 			$license_key = $this->get_param( 'license_key' );
 			$url         = $this->get_param( 'url' );
 
+			// Before checking license with EDD, make sure module is synced.
+			if (false === $this->get_remote_module_id( $download_id )){
+				throw new FS_Endpoint_Exception( "Invalid download ID ({$download_id}).", 'invalid_download_id', 400 );
+			}
+
 			// Get EDD license state.
 			$edd_license_state = edd_software_licensing()->check_license( array(
 				'item_id'   => $download_id,
@@ -260,10 +265,12 @@
 			switch ( $edd_license_state ) {
 				case 'invalid':
 					// Invalid license key.
-					throw new FS_Endpoint_Exception( "Invalid license key ({$license_key})." );
+					throw new FS_Endpoint_Exception( "Invalid license key ({$license_key}).", 'invalid_license_key',
+						400 );
 				case 'invalid_item_id':
 					// Invalid download ID.
-					throw new FS_Endpoint_Exception( "Invalid download ID ({$download_id})." );
+					throw new FS_Endpoint_Exception( "Invalid download ID ({$download_id}).", 'invalid_download_id',
+						400 );
 				/**
 				 * Migrate expired license since all EDD licenses are not blocking.
 				 */

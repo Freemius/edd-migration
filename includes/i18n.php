@@ -29,7 +29,7 @@
 		'endpoint'             => __( 'Endpoint', 'freemius' ),
 		'regenerate'           => __( 'Re-Generate', 'freemius' ),
 		'fetching-token'       => __( 'Fetching new token...', 'freemius' ),
-		'save-changes'         => __( 'Save Changes', 'freemius' ),
+		'save-settings'         => __( 'Save Settings', 'freemius' ),
 		'edit-settings'        => __( 'Edit Settings', 'freemius' ),
 		'congrats'             => _x( 'Congrats', 'as congratulations', 'freemius' ),
 		'oops'                 => _x( 'Oops', 'exclamation', 'freemius' ),

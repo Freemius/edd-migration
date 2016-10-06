@@ -25,7 +25,8 @@
 
 			// Message error + allow back link.
 			wp_die(
-				__( 'Freemius for EDD Migration plugin requires Easy Digital Downloads and its Software Licensing extension to be active.', 'fs-edd-migration' ),
+				__( 'Freemius for EDD Migration plugin requires Easy Digital Downloads and its Software Licensing extension to be active.',
+					'fs-edd-migration' ),
 				__( 'Error' ),
 				array( 'back_link' => true )
 			);
@@ -41,11 +42,34 @@
 	// Get Freemius EDD Migration running.
 	add_action( 'plugins_loaded', 'fs_edd_migration_init' );
 
+	function fs_edd_migration_auto_redirect() {
+		if ( ! function_exists( 'is_network_admin' ) || ! is_network_admin() ) {
+			if ( 'true' === get_option( 'fs_edd_migration_activated' ) ) {
+				// Load config.
+				require_once __DIR__ . '/start.php';
+
+				update_option( 'fs_edd_migration_activated', null );
+
+				if ( fs_redirect( add_query_arg( array(
+					'post_type' => 'download',
+					'page'      => 'fs-migration',
+				), admin_url( 'edit.php', 'admin' ) ) ) ) {
+					exit;
+				}
+			}
+		}
+	}
+
+	add_action( 'admin_init', 'fs_edd_migration_auto_redirect' );
+
 	function fs_migration_plugin_activation() {
 		require_once __DIR__ . '/includes/class-fs-entity-mapper.php';
 
 		// Create mapping table if not exist.
 		FS_Entity_Mapper::create_table();
+
+		// Hint the plugin that it was just activated.
+		update_option( "fs_edd_migration_activated", 'true' );
 	}
 
-	register_activation_hook( __FILE__ , 'fs_migration_plugin_activation' );
+	register_activation_hook( __FILE__, 'fs_migration_plugin_activation' );
