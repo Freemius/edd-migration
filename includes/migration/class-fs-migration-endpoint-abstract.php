@@ -540,7 +540,7 @@
 				$this->shoot_json_success( $account );
 			} catch ( FS_Endpoint_Exception $e ) {
 				// Shoot API failure.
-				$this->shoot_json_failure( $e->getMessage() );
+				$this->shoot_json_exception( $e );
 			}
 		}
 
@@ -563,7 +563,7 @@
 		protected function require_params( array $params ) {
 			foreach ( $params as $p ) {
 				if ( ! isset( $this->_request_data[ $p ] ) ) {
-					throw new FS_Endpoint_Exception( "{$p} is a required parameter." );
+					throw new FS_Endpoint_Exception( "{$p} is a required parameter.", "{$p}_required" );
 				}
 			}
 		}
@@ -583,7 +583,7 @@
 		protected function require_non_empty_params( array $params ) {
 			foreach ( $params as $p ) {
 				if ( empty( $this->_request_data[ $p ] ) ) {
-					throw new FS_Endpoint_Exception( "{$p} cannot be empty." );
+					throw new FS_Endpoint_Exception( "{$p} cannot be empty.", "{$p}_empty" );
 				}
 			}
 		}
@@ -611,7 +611,7 @@
 			if ( ! is_numeric( $this->_request_data[ $name ] ) ||
 			     ! ctype_digit( $this->_request_data[ $name ] )
 			) {
-				throw new FS_Endpoint_Exception( "{$name} must be unsigned integer." );
+				throw new FS_Endpoint_Exception( "{$name} must be unsigned integer.", "{$name}_not_integer", 400 );
 			}
 		}
 
@@ -737,6 +737,24 @@
 		 */
 		protected function shoot_json_failure( $message = '', $data = null ) {
 			$this->shoot_json_result( false, $data, $message );
+		}
+
+		/**
+		 * @author   Vova Feldman (@svovaf)
+		 * @since    1.0.0
+		 *
+		 * @param FS_Endpoint_Exception $e
+		 */
+		protected function shoot_json_exception( FS_Endpoint_Exception $e ) {
+			header( 'Content-Type: application/json' );
+
+			$result = array(
+				'success' => false,
+				'error'   => $e->toArray()
+			);
+
+			echo json_encode( $result );
+			exit;
 		}
 
 		/**
