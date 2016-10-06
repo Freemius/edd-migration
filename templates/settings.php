@@ -144,7 +144,7 @@
 		</table>
 		<p class="submit"><input type="submit" name="submit" id="fs_submit" class="button<?php if ( ! $is_connected ) {
 				echo ' button-primary';
-			} ?>" value="<?php _efs( $is_connected ? 'edit-settings' : 'save-changes' ) ?>"/></p>
+			} ?>" value="<?php _efs( $is_connected ? 'edit-settings' : 'save-settings' ) ?>"/></p>
 	</form>
 </div>
 <script>
