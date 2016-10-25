@@ -48,7 +48,8 @@
 
 
 		// Call the custom license and account migration endpoint.
-		$response = get_transient( 'fs_license_migration_' . $edd_download_id );
+		$transient_key = 'fs_license_migration_' . $edd_download_id . '_' . md5( $edd_license_key );
+		$response      = get_transient( $transient_key );
 
 		if ( false === $response ) {
 			$response = wp_remote_post(
@@ -65,7 +66,7 @@
 			);
 
 			// Cache result (5-min).
-			set_transient( 'fs_license_migration_' . $edd_download_id, $response, 5 * MINUTE_IN_SECONDS );
+			set_transient( $transient_key, $response, 5 * MINUTE_IN_SECONDS );
 		}
 
 		// make sure the response came back okay
