@@ -304,6 +304,9 @@
 		/**
 		 * Get remote entity ID.
 		 *
+		 * @author   Vova Feldman (@svovaf)
+		 * @since    1.0.0
+		 *
 		 * @param string $type
 		 * @param string $local_id
 		 *
@@ -311,6 +314,21 @@
 		 */
 		protected function get_remote_id( $type, $local_id ) {
 			return $this->_entity_mapper->get_remote_id( $type, $local_id );
+		}
+
+		/**
+		 * Unlink entities.
+		 *
+		 * @author   Vova Feldman (@svovaf)
+		 * @since    1.0.1
+		 *
+		 * @param string $type
+		 * @param string $local_id
+		 *
+		 * @return number|false
+		 */
+		protected function unlink_entity( $type, $local_id ) {
+			return $this->_entity_mapper->unlink( $type, $local_id );
 		}
 
 		/**
@@ -592,11 +610,20 @@
 		 *
 		 * @throws Exception
 		 */
-		protected static function process_api_response( $result, $exception_on_error = true ) {
+		protected function process_api_response( $result, $exception_on_error = true ) {
 			if ( self::is_api_error( $result ) ) {
 				// Do something.
 				if ( $exception_on_error ) {
 					if ( isset( $result->error ) ) {
+						switch ( $result->error->code ) {
+							case 'install_not_found':
+								$this->unlink_entity(
+									FS_Install::get_type(),
+									$this->get_local_install_id()
+								);
+								break;
+						}
+
 						throw new FS_Endpoint_Exception(
 							'Freemius migration error: ' . $result->error->message,
 							$result->error->code,
@@ -1058,7 +1085,7 @@
 				$this->get_customer_for_api()
 			);
 
-			$user = new FS_User( self::process_api_response( $result ) );
+			$user = new FS_User( $this->process_api_response( $result ) );
 
 			// Link the local and remote customer.
 			$this->link_entity( $user, $this->get_local_customer_id() );
@@ -1095,7 +1122,7 @@
 				$this->get_customer_billing_for_api()
 			);
 
-			$billing = new FS_Billing( self::process_api_response( $result ) );
+			$billing = new FS_Billing( $this->process_api_response( $result ) );
 
 			$this->link_entity( $billing, $this->get_local_billing_id() );
 
@@ -1120,7 +1147,7 @@
 				$this->get_install_for_api( $license_id )
 			);
 
-			$install = new FS_Install( self::process_api_response( $result ) );
+			$install = new FS_Install( $this->process_api_response( $result ) );
 
 			// Link the install to the remote one.
 			$this->link_entity( $install, $this->get_local_install_id() );
@@ -1152,7 +1179,7 @@
 				'put'
 			);
 
-			$license = new FS_License( self::process_api_response( $result ) );
+			$license = new FS_License( $this->process_api_response( $result ) );
 
 			// Link local install to new license.
 			$this->link_entity( $license, $this->get_local_install_id() );
@@ -1175,7 +1202,7 @@
 				$this->get_purchase_for_api()
 			);
 
-			$payment = new FS_Payment( self::process_api_response( $result ) );
+			$payment = new FS_Payment( $this->process_api_response( $result ) );
 
 			$this->link_entity( $payment, $this->get_local_payment_id() );
 
@@ -1202,7 +1229,7 @@
 				$this->get_subscription_for_api()
 			);
 
-			$subscription = new FS_Subscription( self::process_api_response( $result ) );
+			$subscription = new FS_Subscription( $this->process_api_response( $result ) );
 
 			$this->link_entity( $subscription, $this->get_local_subscription_id() );
 
@@ -1233,7 +1260,7 @@
 				$payment_data
 			);
 
-			$payment = new FS_Payment( self::process_api_response( $result ) );
+			$payment = new FS_Payment( $this->process_api_response( $result ) );
 
 			$this->link_entity( $payment, $local_payment_id );
 

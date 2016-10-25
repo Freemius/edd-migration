@@ -19,13 +19,15 @@
 	 * @param int    $edd_download_id The context EDD download ID (from your store).
 	 * @param string $edd_license_key The current site's EDD license key.
 	 * @param string $edd_store_url   Your EDD store URL.
+	 * @param bool   $redirect
 	 *
 	 * @return bool
 	 */
 	function do_my_edd2fs_license_migration(
 		$edd_download_id,
 		$edd_license_key,
-		$edd_store_url
+		$edd_store_url,
+		$redirect = false
 	) {
 		/**
 		 * @var \Freemius $fs
@@ -46,7 +48,8 @@
 
 
 		// Call the custom license and account migration endpoint.
-		$response = get_transient( 'fs_license_migration_' . $edd_download_id );
+		$transient_key = 'fs_license_migration_' . $edd_download_id . '_' . md5( $edd_license_key );
+		$response      = get_transient( $transient_key );
 
 		if ( false === $response ) {
 			$response = wp_remote_post(
@@ -54,29 +57,31 @@
 				array_merge( $install_details, array(
 					'timeout'   => 15,
 					'sslverify' => false,
-					'body'      => array_merge( $install_details, array(
+					'body'      => json_encode( array_merge( $install_details, array(
 						'module_id'   => $edd_download_id,
 						'license_key' => $edd_license_key,
 						'url'         => home_url()
-					) )
+					) ) ),
 				) )
 			);
 
 			// Cache result (5-min).
-			set_transient( 'fs_license_migration_' . $edd_download_id, $response, 5 * MINUTE_IN_SECONDS );
+			set_transient( $transient_key, $response, 5 * MINUTE_IN_SECONDS );
 		}
 
 		// make sure the response came back okay
 		if ( is_wp_error( $response ) || 200 !== wp_remote_retrieve_response_code( $response ) ) {
 			$error_message = $response->get_error_message();
 
-			$message = ( is_wp_error( $response ) && ! empty( $error_message ) ) ?
+			return ( is_wp_error( $response ) && ! empty( $error_message ) ) ?
 				$error_message :
 				__( 'An error occurred, please try again.' );
 
 		} else {
+			$response = json_decode( wp_remote_retrieve_body( $response ) );
+
 			if ( ! is_object( $response ) ||
-			     isset( $response->success ) ||
+			     ! isset( $response->success ) ||
 			     true !== $response->success
 			) {
 				if ( isset( $response->error ) ) {
@@ -99,10 +104,13 @@
 				return false;
 			}
 
+			// Delete transient on successful migration.
+			delete_transient( $transient_key );
+
 			$fs->setup_account(
 				new FS_User( $response->data->user ),
 				new FS_Site( $response->data->install ),
-				false
+				$redirect
 			);
 
 			return true;
@@ -115,6 +123,8 @@
 	 * param in the query string that is set to a unique migration
 	 * request identifier, making sure only one request will make
 	 * the migration.
+	 *
+	 * @todo     Test 2 threads in parallel and make sure that `fs_add_transient()` works as expected.
 	 *
 	 * @author   Vova Feldman (@svovaf)
 	 * @since    1.0.0
@@ -181,13 +191,16 @@
 	 * @param int    $edd_download_id The context EDD download ID (from your store).
 	 * @param string $edd_license_key The current site's EDD license key.
 	 * @param string $edd_store_url   Your EDD store URL.
+	 * @param bool   $is_blocking     Special argument for testing. When false, will initiate the migration in the same
+	 *                                HTTP request.
 	 *
 	 * @return string|bool
 	 */
 	function my_non_blocking_edd2fs_license_migration(
 		$edd_download_id,
 		$edd_license_key,
-		$edd_store_url
+		$edd_store_url,
+		$is_blocking = false
 	) {
 		/**
 		 * @var \Freemius $fs
@@ -222,14 +235,21 @@
 
 		$in_migration = ( false !== $migration_uid );
 
-		if ( ! $in_migration ) {
+		if ( ! $is_blocking && ! $in_migration ) {
 			// Initiate license migration in a non-blocking request.
 			return spawn_my_edd2fs_license_migration( $edd_download_id );
 		} else {
-			if ( $migration_uid === get_query_var( 'fsm_edd_' . $edd_download_id, false ) &&
-			     'POST' === $_SERVER['REQUEST_METHOD']
+			if ( $is_blocking ||
+			     ( ! empty( $_REQUEST[ 'fsm_edd_' . $edd_download_id ] ) &&
+			       $migration_uid === $_REQUEST[ 'fsm_edd_' . $edd_download_id ] &&
+			       'POST' === $_SERVER['REQUEST_METHOD'] )
 			) {
-				$success = do_my_edd2fs_license_migration( $edd_download_id, $edd_license_key, $edd_store_url );
+				$success = do_my_edd2fs_license_migration(
+					$edd_download_id,
+					$edd_license_key,
+					$edd_store_url
+				);
+
 				if ( $success ) {
 					$fs->set_plugin_upgrade_complete();
 
@@ -239,6 +259,107 @@
 				return 'failed';
 			}
 		}
+	}
+
+	/**
+	 * Try to activate EDD license.
+	 *
+	 * @author   Vova Feldman (@svovaf)
+	 * @since    1.0.0
+	 *
+	 * @param string $license_key
+	 *
+	 * @return bool
+	 */
+	function my_edd_activate_license( $license_key ) {
+		// Call the custom API.
+		$response = wp_remote_post(
+			MY__EDD_STORE_URL,
+			array(
+				'timeout'   => 15,
+				'sslverify' => false,
+				'body'      => array(
+					'edd_action' => 'activate_license',
+					'license'    => $license_key,
+					'item_id'    => MY__EDD_DOWNLOAD_ID,
+					'url'        => home_url()
+				)
+			)
+		);
+
+		// Make sure the response came back okay.
+		if ( is_wp_error( $response ) ) {
+			return false;
+		}
+
+		// Decode the license data.
+		$license_data = json_decode( wp_remote_retrieve_body( $response ) );
+
+		if ( 'valid' === $license_data->license ) {
+			// Store EDD license key.
+			update_option( 'edd_sample_license_key', $license_key );
+		} else {
+			return false;
+		}
+
+		return true;
+	}
+
+	/**
+	 * If installation failed due to license activation  on Freemius try to
+	 * activate the license on EDD first, and if successful, migrate the license
+	 * with a blocking request.
+	 *
+	 * This method will only be triggered upon failed module installation.
+	 *
+	 * @author   Vova Feldman (@svovaf)
+	 * @since    1.0.0
+	 *
+	 * @param object $response Freemius installation request result.
+	 * @param array  $args     Freemius installation request arguments.
+	 *
+	 * @return object|string
+	 */
+	function my_try_migrate_on_activation( $response, $args ) {
+		if ( empty( $args['license_key'] ) || 32 !== strlen( $args['license_key'] ) ) {
+			// No license key provided (or invalid length), ignore.
+			return $response;
+		}
+
+		/**
+		 * @var \Freemius $fs
+		 */
+		$fs = my_freemius();
+
+		if ( ! $fs->has_api_connectivity() ) {
+			// No connectivity to Freemius API, it's up to you what to do.
+			return $response;
+		}
+
+		$license_key = $args['license_key'];
+
+		if ( ( is_object( $response->error ) && 'invalid_license_key' === $response->error->code ) ||
+		     ( is_string( $response->error ) && false !== strpos( strtolower( $response->error ), 'license' ) )
+		) {
+			if ( my_edd_activate_license( $license_key ) ) {
+				// Successfully activated license on EDD, try to migrate to Freemius.
+				if ( do_my_edd2fs_license_migration(
+					MY__EDD_DOWNLOAD_ID,
+					$license_key,
+					MY__EDD_STORE_URL,
+					true
+				) ) {
+					/**
+					 * If successfully migrated license and got to this point (no redirect),
+					 * it means that it's an AJAX installation (opt-in), therefore,
+					 * override the response with the after connect URL.
+					 */
+					return $fs->get_after_activation_url( 'after_connect_url' );
+				}
+			}
+		}
+
+		return $response;
 	}
 
 	#region Database Transient
@@ -304,17 +425,29 @@
 
 	#endregion
 
-	if ( ! defined( 'DOING_AJAX' ) && ! defined( 'DOING_CRON' ) ) {
-		// Pull license key from storage.
+	if ( ! defined( 'DOING_CRON' ) ) {
+		// Pull EDD license key from storage.
 		$license_key = trim( get_option( 'edd_sample_license_key' ) );
 
 		if ( empty( $license_key ) ) {
-			// No license key, therefore, no migration required.
+			/**
+			 * If no EDD license is set it might be one of the following:
+			 *  1. User purchased module directly from Freemius.
+			 *  2. User did purchase from EDD, but has never activated the license on this site.
+			 *  3. User got access to the code without ever purchasing.
+			 *
+			 * In case it's reason #2, hook to Freemius `after_install_failure` event, and if
+			 * the installation failure resulted due to an issue with the license, try to
+			 * activate the license on EDD first, and if works, migrate to Freemius right after.
+			 */
+			my_freemius()->add_filter( 'after_install_failure', 'my_try_migrate_on_activation', 10, 2 );
 		} else {
-			my_non_blocking_edd2fs_license_migration(
-				MY__EDD_DOWNLOAD_ID,
-				$license_key,
-				MY__EDD_STORE_URL
-			);
+			if ( ! defined( 'DOING_AJAX' ) ) {
+				my_non_blocking_edd2fs_license_migration(
+					MY__EDD_DOWNLOAD_ID,
+					$license_key,
+					MY__EDD_STORE_URL
+				);
+			}
 		}
 	}
