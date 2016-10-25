@@ -317,11 +317,13 @@
 	 *
 	 * @param object $response Freemius installation request result.
 	 * @param array  $args     Freemius installation request arguments.
+	 *
+	 * @return object|string
 	 */
 	function my_try_migrate_on_activation( $response, $args ) {
-		if ( empty( $args['license_key'] ) && 32 === strlen( $args['license_key'] ) ) {
+		if ( empty( $args['license_key'] ) || 32 !== strlen( $args['license_key'] ) ) {
 			// No license key provided (or invalid length), ignore.
-			return;
+			return $response;
 		}
 
 		/**
@@ -331,7 +333,7 @@
 
 		if ( ! $fs->has_api_connectivity() ) {
 			// No connectivity to Freemius API, it's up to you what to do.
-			return;
+			return $response;
 		}
 
 		$license_key = $args['license_key'];
@@ -340,15 +342,24 @@
 		     ( is_string( $response->error ) && false !== strpos( strtolower( $response->error ), 'license' ) )
 		) {
 			if ( my_edd_activate_license( $license_key ) ) {
-				// Successfully activated license on EDD, migrate to Freemius.
-				do_my_edd2fs_license_migration(
+				// Successfully activated license on EDD, try to migrate to Freemius.
+				if ( do_my_edd2fs_license_migration(
 					MY__EDD_DOWNLOAD_ID,
 					$license_key,
 					MY__EDD_STORE_URL,
 					true
-				);
+				) ) {
+					/**
+					 * If successfully migrated license and got to this point (no redirect),
+					 * it means that it's an AJAX installation (opt-in), therefore,
+					 * override the response with the after connect URL.
+					 */
+					return $fs->get_after_activation_url( 'after_connect_url' );
+				}
 			}
 		}
+
+		return $response;
 	}
 
 	#region Database Transient
