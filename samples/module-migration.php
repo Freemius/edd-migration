@@ -73,7 +73,7 @@
 		if ( is_wp_error( $response ) || 200 !== wp_remote_retrieve_response_code( $response ) ) {
 			$error_message = $response->get_error_message();
 
-			$message = ( is_wp_error( $response ) && ! empty( $error_message ) ) ?
+			return ( is_wp_error( $response ) && ! empty( $error_message ) ) ?
 				$error_message :
 				__( 'An error occurred, please try again.' );
 
