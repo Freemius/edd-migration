@@ -296,7 +296,10 @@
 		$license_data = json_decode( wp_remote_retrieve_body( $response ) );
 
 		if ( 'valid' === $license_data->license ) {
-			update_option( 'edd_sample_license_status', $license_key );
+			// Store EDD license key.
+			update_option( 'edd_sample_license_key', $license_key );
+		} else {
+			return false;
 		}
 
 		return true;
