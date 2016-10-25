@@ -56,11 +56,11 @@
 				array_merge( $install_details, array(
 					'timeout'   => 15,
 					'sslverify' => false,
-					'body'      => array_merge( $install_details, array(
+					'body'      => json_encode( array_merge( $install_details, array(
 						'module_id'   => $edd_download_id,
 						'license_key' => $edd_license_key,
 						'url'         => home_url()
-					) )
+					) ) ),
 				) )
 			);
 
