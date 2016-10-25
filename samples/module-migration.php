@@ -274,7 +274,7 @@
 	function my_edd_activate_license( $license_key ) {
 		// Call the custom API.
 		$response = wp_remote_post(
-			EDD_SAMPLE_STORE_URL,
+			MY__EDD_STORE_URL,
 			array(
 				'timeout'   => 15,
 				'sslverify' => false,
