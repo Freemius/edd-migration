@@ -103,6 +103,9 @@
 				return false;
 			}
 
+			// Delete transient on successful migration.
+			delete_transient( $transient_key );
+
 			$fs->setup_account(
 				new FS_User( $response->data->user ),
 				new FS_Site( $response->data->install ),
