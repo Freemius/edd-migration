@@ -78,7 +78,7 @@
 
 		} else {
 			if ( ! is_object( $response ) ||
-			     isset( $response->success ) ||
+			     ! isset( $response->success ) ||
 			     true !== $response->success
 			) {
 				if ( isset( $response->error ) ) {
