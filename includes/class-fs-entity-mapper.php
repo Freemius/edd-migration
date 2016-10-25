@@ -178,6 +178,30 @@ ON DUPLICATE KEY UPDATE
 		}
 
 		/**
+		 * Unlink local entity.
+		 *
+		 * @author Vova Feldman (@svovaf)
+		 * @since  1.0.1
+		 *
+		 * @param string $type
+		 * @param string $local_id
+		 *
+		 * @return int|false The number of rows updated, or false on error.
+		 */
+		function unlink($type, $local_id) {
+			global $wpdb;
+
+			return $wpdb->delete(
+				$this->_table_name,
+				array(
+					'local_id' => $local_id,
+					'entity_type' => $type,
+					'namespace' => $this->_namespace,
+				)
+			);
+		}
+
+		/**
 		 * Load map by local entity.
 		 *
 		 * @author Vova Feldman (@svovaf)
