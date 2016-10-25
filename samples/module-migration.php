@@ -200,7 +200,7 @@
 		$edd_download_id,
 		$edd_license_key,
 		$edd_store_url,
-		$is_blocking = true
+		$is_blocking = false
 	) {
 		/**
 		 * @var \Freemius $fs
@@ -235,11 +235,11 @@
 
 		$in_migration = ( false !== $migration_uid );
 
-		if ( $is_blocking && ! $in_migration ) {
+		if ( ! $is_blocking && ! $in_migration ) {
 			// Initiate license migration in a non-blocking request.
 			return spawn_my_edd2fs_license_migration( $edd_download_id );
 		} else {
-			if ( ! $is_blocking ||
+			if ( $is_blocking ||
 			     ( ! empty( $_REQUEST[ 'fsm_edd_' . $edd_download_id ] ) &&
 			       $migration_uid === $_REQUEST[ 'fsm_edd_' . $edd_download_id ] &&
 			       'POST' === $_SERVER['REQUEST_METHOD'] )
