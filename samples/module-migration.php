@@ -428,10 +428,8 @@
 			 * In case it's reason #2, hook to Freemius `after_install_failure` event, and if
 			 * the installation failure resulted due to an issue with the license, try to
 			 * activate the license on EDD first, and if works, migrate to Freemius right after.
-			 *
-			 * The reason
 			 */
-			my_freemius()->add_action( 'after_install_failure', 'my_try_migrate_on_activation', 10, 2 );
+			my_freemius()->add_filter( 'after_install_failure', 'my_try_migrate_on_activation', 10, 2 );
 		} else {
 			if ( ! defined( 'DOING_AJAX' ) ) {
 				my_non_blocking_edd2fs_license_migration(
