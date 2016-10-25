@@ -77,6 +77,8 @@
 				__( 'An error occurred, please try again.' );
 
 		} else {
+			$response = json_decode( wp_remote_retrieve_body( $response ) );
+
 			if ( ! is_object( $response ) ||
 			     ! isset( $response->success ) ||
 			     true !== $response->success
