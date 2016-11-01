@@ -66,7 +66,7 @@
 				add_action( 'init', array( $this, 'maybe_process_api_request' ) );
 			}
 
-			// Reduce query load for EDD API calls
+			// Reduce query load for API calls.
 			add_action( 'after_setup_theme', array( $this, 'reduce_query_load' ) );
 
 			add_action( 'admin_menu', array( &$this, '_add_submenu' ), 99999999 );
@@ -172,7 +172,7 @@
 		function get_remote_paid_plan_id( $local_module_id ) {
 			return $this->get_remote_id(
 				FS_Plan::get_type(),
-				$local_module_id . ':' . ( edd_has_variable_prices( $local_module_id ) ? '1' : '0' )
+				$this->get_local_paid_plan_id( $local_module_id )
 			);
 		}
 
@@ -357,7 +357,7 @@
 		}
 
 		/**
-		 * Get all EDD downloads mapped to FS objects for the settings page.
+		 * Get all products mapped to FS objects for the settings page.
 		 *
 		 * @author Vova Feldman
 		 * @since  1.0.0
@@ -796,7 +796,7 @@
 			$local_module = $this->get_local_module_by_id( $local_module_id );
 
 			if ( false === $local_module ) {
-				// Post not exist or not an EDD download.
+				// Post not exist.
 				$this->shoot_json_failure( "There's no local module with the specified ID ({$local_module_id})." );
 			}
 
@@ -892,6 +892,18 @@
 		 * @return mixed
 		 */
 		abstract protected function get_local_module_by_id( $local_module_id );
+
+		/**
+		 * Should return the local plan ID.
+		 *
+		 * @author Vova Feldman
+		 * @since  1.0.0
+		 *
+		 * @param string $local_module_id
+		 *
+		 * @return string
+		 */
+		abstract protected function get_local_paid_plan_id( $local_module_id );
 
 		/**
 		 * Should return an array of all local modules.

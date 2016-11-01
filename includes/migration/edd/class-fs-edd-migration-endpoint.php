@@ -163,6 +163,20 @@
 		}
 
 		/**
+		 * Return the EDD plan ID.
+		 *
+		 * @author Vova Feldman
+		 * @since  1.0.0
+		 *
+		 * @param string $local_module_id
+		 *
+		 * @return string
+		 */
+		protected function get_local_paid_plan_id( $local_module_id ) {
+			return $local_module_id . ':' . ( edd_has_variable_prices( $local_module_id ) ? '1' : '0' );
+		}
+
+		/**
 		 * EDD Download slug (post_name).
 		 *
 		 * @author Vova Feldman
