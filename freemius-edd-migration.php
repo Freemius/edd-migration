@@ -36,7 +36,7 @@
 		require_once __DIR__ . '/start.php';
 
 		// Load migration module.
-		require_once WP_FSM__DIR_MIGRATION . '/class-fs-edd-migration-endpoint.php';
+		require_once WP_FSM__DIR_MIGRATION . '/edd/class-fs-edd-migration-endpoint.php';
 	}
 
 	// Get Freemius EDD Migration running.

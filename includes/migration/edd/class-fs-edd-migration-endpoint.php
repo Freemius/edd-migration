@@ -56,8 +56,8 @@
 		 * @throws Exception
 		 */
 		function migrate_license_by_id( $license_id ) {
-			require_once WP_FSM__DIR_INCLUDES . '/migration/class-fs-migration-abstract.php';
-			require_once WP_FSM__DIR_INCLUDES . '/migration/class-fs-edd-migration.php';
+			require_once WP_FSM__DIR_MIGRATION . '/class-fs-migration-abstract.php';
+			require_once WP_FSM__DIR_MIGRATION . '/edd/class-fs-edd-migration.php';
 
 			$migration = FS_EDD_Migration::instance( $license_id );
 			$migration->set_api( $this->get_api() );
@@ -163,6 +163,20 @@
 		}
 
 		/**
+		 * Return the EDD plan ID.
+		 *
+		 * @author Vova Feldman
+		 * @since  1.0.0
+		 *
+		 * @param string $local_module_id
+		 *
+		 * @return string
+		 */
+		protected function get_local_paid_plan_id( $local_module_id ) {
+			return $local_module_id . ':' . ( edd_has_variable_prices( $local_module_id ) ? '1' : '0' );
+		}
+
+		/**
 		 * EDD Download slug (post_name).
 		 *
 		 * @author Vova Feldman
@@ -188,7 +202,7 @@
 		 * @return \FS_EDD_Download_Migration
 		 */
 		protected function get_local_module_migration_manager( $local_module, FS_Plugin $module = null ) {
-			require_once WP_FSM__DIR_INCLUDES . '/migration/class-fs-edd-download-migration.php';
+			require_once WP_FSM__DIR_MIGRATION . '/edd/class-fs-edd-download-migration.php';
 
 			if ( is_null( $module ) ) {
 				$module = $this->get_module_by_slug( $this->get_local_module_slug( $local_module ) );
@@ -214,8 +228,8 @@
 		 * @throws FS_Endpoint_Exception
 		 */
 		protected function migrate_install_license() {
-			require_once WP_FSM__DIR_INCLUDES . '/migration/class-fs-migration-abstract.php';
-			require_once WP_FSM__DIR_INCLUDES . '/migration/class-fs-edd-migration.php';
+			require_once WP_FSM__DIR_MIGRATION . '/class-fs-migration-abstract.php';
+			require_once WP_FSM__DIR_MIGRATION . '/edd/class-fs-edd-migration.php';
 
 			$license_id = edd_software_licensing()->get_license_by_key( $this->get_param( 'license_key' ) );
 

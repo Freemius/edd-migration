@@ -26,6 +26,10 @@
 		define( 'WP_FS__NAMESPACE_EDD', 'EDD' );
 	}
 
+	if ( ! defined( 'WP_FS__NAMESPACE_WC' ) ) {
+		define( 'WP_FS__NAMESPACE_WC', 'WC' );
+	}
+
 	if ( ! defined( 'WP_FS__IS_PRODUCTION_MODE' ) ) {
 		// By default, run with Freemius production servers.
 		define( 'WP_FS__IS_PRODUCTION_MODE', true );
