@@ -86,6 +86,7 @@
 			$this->_entity_mapper = FS_Entity_Mapper::instance( $namespace );
 
 			add_action( 'wp_ajax_fs_sync_module', array( &$this, '_sync_module_to_freemius_callback' ) );
+			add_action( 'wp_ajax_fs_clear_mapping', array( &$this, '_clear_mapping_callback' ) );
 		}
 
 		#endregion
@@ -815,6 +816,17 @@
 				// Failure.
 				$this->shoot_json_failure( 'Failed syncing the module.' );
 			}
+		}
+
+		/**
+		 * Clear all mapping.
+		 *
+		 * @author Vova Feldman
+		 * @since  1.0.2
+		 */
+		public function _clear_mapping_callback(){
+			$this->_entity_mapper->clear_mapping();
+			$this->shoot_json_success();
 		}
 
 		/**

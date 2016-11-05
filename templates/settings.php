@@ -96,6 +96,10 @@
 			<?php endforeach ?>
 			</tbody>
 		</table>
+
+		<br>
+
+		<button id="clear_mapping" class="button"><?php _efs( 'Clear Mapping Data' ) ?></button>
 	<?php endif ?>
 	<?php if ( ! $is_connected ) : ?>
 		<p><?php printf(
@@ -223,6 +227,28 @@
 			});
 
 			return false;
+		});
+
+		$('#clear_mapping').click(function () {
+			if (confirm("<?php _e('Are you sure you\'d like to clear all mapping data?', 'freemius') ?>")) {
+				$.post(ajaxurl, {
+					action: 'fs_clear_mapping'
+				}, function (result) {
+					if (result.success) {
+						$('.fs--synced').each(function () {
+							var $this = $(this);
+							$this.removeClass('fs--syncing fs--synced');
+							$this.find('.fs--module-id').html('');
+							$this.find('.fs--paid-plan-id').html('');
+							$this.find('.button').removeClass('button-primary').html('<?php __fs( 'Sync to Freemius', 'freemius' ) ?>')
+						});
+
+						alert('<?php _e('All mapping data was successfully deleted.', 'freemius') ?>');
+					} else {
+						alert('<?php _e('Oops... Something went wrong, please try again in few min.', 'freemius' ) ?>');
+					}
+				});
+			}
 		});
 	})
 	(jQuery);
