@@ -66,12 +66,14 @@
 					$period    = 'never';
 				}
 
+				$license_limit = get_post_meta( $download->ID, '_edd_sl_limit', true );
+
 				$this->_edd_prices = array(
 					// Set the EDD price ID as ZERO when the download doesn't have variable prices.
 					0 => array(
 						'recurring'     => $recurring ? 'yes' : 'no',
 						'period'        => $period,
-						'license_limit' => 0,
+						'license_limit' => is_numeric( $license_limit ) ? $license_limit : 0,
 						'amount'        => $download->get_price(),
 					)
 				);
