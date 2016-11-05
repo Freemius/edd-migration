@@ -64,7 +64,7 @@
 					}
 				}
 
-				$local_modules = array_merge($synced_local_modules, $not_synced_local_modules);
+				$local_modules = array_merge( $synced_local_modules, $not_synced_local_modules );
 			?>
 
 			<?php foreach ( $local_modules as $local_module ) : ?>
@@ -83,13 +83,13 @@
 								echo ( false !== $remote_plan_id ) ? $remote_plan_id : '';
 							?></td>
 						<td>
-							<button class="button"><?php _efs( 'Resync' ) ?></button>
+							<button class="button"><?php _efs( 'Resync', 'freemius' ) ?></button>
 						</td>
 					<?php else : ?>
 						<td class="fs--module-id"></td>
 						<td class="fs--paid-plan-id"></td>
 						<td style="text-align: right">
-							<button class="button button-primary"><?php _efs( 'Sync to Freemius' ) ?></button>
+							<button class="button button-primary"><?php _efs( 'Sync to Freemius', 'freemius' ) ?></button>
 						</td>
 					<?php endif ?>
 				</tr>
@@ -212,7 +212,6 @@
 			}, function (result) {
 				if (result.success) {
 					$container.addClass('fs--synced');
-					$container.removeClass('fs--syncing');
 					$moduleID.html(result.data.module_id);
 					$paidPlanID.html(result.data.plan_id);
 
@@ -224,6 +223,7 @@
 				// Recover button's label.
 				$this.html('<?php _efs( 'Re-sync' ) ?>');
 				$this.prop('disabled', false);
+				$container.removeClass('fs--syncing');
 			});
 
 			return false;
