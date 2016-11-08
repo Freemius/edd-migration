@@ -23,7 +23,7 @@
 	}
 
 	if ( ! defined( 'WP_FS__NAMESPACE_WC' ) ) {
-		define( 'WP_FS__NAMESPACE_WC', 'WC' );
+		define( 'WP_FS__NAMESPACE_WC', 'wc' );
 	}
 
 	if ( ! defined( 'WP_FS__IS_PRODUCTION_MODE' ) ) {

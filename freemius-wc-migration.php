@@ -48,10 +48,7 @@
 
 				update_option( 'fs_wc_migration_activated', null );
 
-				if ( fs_redirect( add_query_arg( array(
-					'post_type' => 'download',
-					'page'      => 'fs-migration',
-				), admin_url( 'edit.php', 'admin' ) ) ) ) {
+				if ( fs_redirect( admin_url( 'admin.php?page=fs-migration' ) ) ) {
 					exit;
 				}
 			}
