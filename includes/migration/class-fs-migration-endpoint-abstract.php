@@ -300,7 +300,7 @@
 		function _add_submenu() {
 			// Add Freemius submenu item.
 			$hook = add_submenu_page(
-				'edit.php?post_type=download',
+				'woocommerce',
 				'Freemius',
 				'Freemius',
 				'manage_options',
