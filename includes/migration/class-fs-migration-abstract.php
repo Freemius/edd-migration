@@ -1223,6 +1223,8 @@
 		 * @return \FS_Subscription
 		 */
 		protected function migrate_subscription( $customer_id ) {
+			throw new Exception( 'Subscriptions not implemented' );
+
 			$result = $this->api_call(
 				"/users/{$customer_id}/plans/{$this->get_plan_id()}/pricing/{$this->get_pricing_id()}.json",
 				'post',
