@@ -786,8 +786,6 @@
 
 			$purchase = array_merge( $purchase, $this->get_purchase_vat_for_api() );
 
-			print_awesome_r( $purchase );
-
 			return $purchase;
 		}
 
