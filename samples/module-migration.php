@@ -146,7 +146,7 @@
 		 * we only want that one request will succeed writing this
 		 * option to the storage.
 		 */
-		if ( fs_add_transient( 'fsm_edd_' . $edd_download_id, $migration_uid ) ) {
+		if ( fs_add_transient( 'fsm_edd_' . $edd_download_id, $migration_uid, MINUTE_IN_SECONDS ) ) {
 			$loaded_migration_uid = fs_get_transient( 'fsm_edd_' . $edd_download_id );
 		}
 
@@ -413,7 +413,9 @@
 			$transient_option  = '_fs_transient_' . $transient;
 			$transient_timeout = '_fs_transient_timeout_' . $transient;
 
-			if ( false === get_option( $transient_option ) ) {
+			$current_value = fs_get_transient($transient);
+
+			if ( false === $current_value ) {
 				$autoload = 'yes';
 				if ( $expiration ) {
 					$autoload = 'no';
@@ -421,6 +423,16 @@
 				}
 
 				return add_option( $transient_option, $value, '', $autoload );
+			}
+			else
+			{
+				// If expiration is requested, but the transient has no timeout option,
+				// delete, then re-create the timeout.
+				if ( $expiration ) {
+					if ( false === get_option( $transient_timeout ) ) {
+						add_option( $transient_timeout, time() + $expiration, '', 'no' );
+					}
+				}
 			}
 
 			return false;
