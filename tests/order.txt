@@ -1,0 +1,23 @@
+# Contents of order array
+array(
+    [user_id] => 2
+    [order_id] => 21
+    [order_key] => wc_order_abcdefgh12345
+    [license_email] => theguy@example.com
+    [_api_software_title_parent] => Storefront Pro
+    [_api_software_title_var] =>
+    [software_title] => Storefront Pro
+    [parent_product_id] => 10
+    [variable_product_id] =>
+    [current_version] => 3.5.0
+    [_api_activations] =>
+    [_api_activations_parent] =>
+    [_api_update_permission] => yes
+    [is_variable_product] => no
+    [license_type] =>
+    [expires] =>
+    [_purchase_time] => 2016-11-03 05:40:08
+    [_api_was_activated] =>
+    [api_key] => wc_order_abcdefgh12345_am_rstuvwxy6789
+    [product_id] => 10
+)

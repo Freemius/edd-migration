@@ -316,7 +316,7 @@
 		 * Get local paid plan pricing unique IDs.
 		 *
 		 * This case is relevant when there are different pricing objects for the
-		 * same feature-set but different license activations limit like in EDD.
+		 * same feature-set but different license activations limit like in WC.
 		 *
 		 * @author Vova Feldman (@svovaf)
 		 * @since  1.0.0

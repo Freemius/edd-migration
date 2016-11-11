@@ -18,63 +18,41 @@
 	 */
 	class FS_WC_Download_Migration extends FS_Module_Migration_Abstract {
 		/**
-		 * @var EDD_Download
+		 * @var WC_Product_Variable|WC_Product
 		 */
-		private $_edd_download;
+		private $_product;
 
 		/**
 		 * @var array<int,array<string,mixed>>
 		 */
-		private $_edd_prices = array();
+		private $_variations = array();
 
 		/**
 		 * @var int
 		 */
-		private $_edd_free_price_id;
+		private $_free_price_id;
 
 		/**
 		 * @var bool
 		 */
-		private $_edd_has_paid_plan = false;
+		private $_has_paid_plan = false;
 
 		/**
 		 * @var array
 		 */
-		private $_edd_paid_plan_pricing = array();
+		private $_plan_pricing = array();
 
 		#--------------------------------------------------------------------------------
 		#region Init
 		#--------------------------------------------------------------------------------
 
-		function __construct(
-			FS_Developer $developer,
-			$module,
-			EDD_Download $download
-		) {
+		function __construct( FS_Developer $developer, $module, WC_Product $product ) {
+			$this->_product = $product;
+
 			$this->init( WP_FS__NAMESPACE_WC, $developer, $module );
 
-			$this->_edd_download = $download;
-
-			if ( $download->has_variable_prices() ) {
-				$this->_edd_prices = $download->get_prices();
-			} else {
-				if ( class_exists( 'EDD_Recurring' ) ) {
-					$recurring = EDD_Recurring::is_recurring( $download->ID );
-					$period    = EDD_Recurring::get_period_single( $download->ID );
-				} else {
-					$recurring = false;
-					$period    = 'never';
-				}
-
-				$this->_edd_prices = array(
-					// Set the EDD price ID as ZERO when the download doesn't have variable prices.
-					0 => array(
-						'recurring'     => $recurring ? 'yes' : 'no',
-						'period'        => $period,
-						'license_limit' => 0,
-						'amount'        => $download->get_price(),
-					)
-				);
+			if ( $product->is_type('variable') ) {
+				$this->_variations = $this->_product->get_available_variations();
 			}
 
 			$this->process_local_pricing();
@@ -92,33 +70,12 @@
 		 * @author Vova Feldman (@svovaf)
 		 * @since  1.0.0
 		 *
-		 * @param array $edd_price
+		 * @todo Allow user to change this somehow
 		 *
 		 * @return string
 		 */
-		private function get_billing_cycle( $edd_price ) {
-			$billing_cycle = 'lifetime';
-
-			if ( ! empty( $edd_price['recurring'] ) &&
-			     'yes' === $edd_price['recurring'] &&
-			     ! empty( $edd_price['period'] ) &&
-			     'never' !== $edd_price['period']
-			) {
-				switch ( $edd_price['period'] ) {
-					case 'year':
-						$billing_cycle = 'annual';
-						break;
-					case 'month':
-						$billing_cycle = 'monthly';
-						break;
-					default:
-						// @todo Throw an error when billing cycle is not supported.
-						$billing_cycle = 'monthly';
-						break;
-				}
-			}
-
-			return $billing_cycle;
+		private function get_billing_cycle( $id ) {
+			return 'annual';
 		}
 
 		/**
@@ -129,68 +86,67 @@
 		 *
 		 * @return string
 		 */
-		private function get_edd_unique_price_id( $id ) {
-			return $this->_edd_download->ID . ':' . $id;
+		private function get_wc_unique_price_id( $id ) {
+			return $this->_product->id . ':' . $id;
 		}
 
 		/**
-		 * Aggregate EDD prices based on license limits.
+		 * Aggregate WC prices based on license limits.
 		 *
 		 * @author Vova Feldman (@svovaf)
 		 * @since  1.0.0
 		 */
 		private function process_local_pricing() {
-			$edd_paid_plan_pricing_by_licenses = array();
+			$plan_pricing = array();
 
-			foreach ( $this->_edd_prices as $id => &$edd_price ) {
-				$licenses = (int) $edd_price['license_limit'];
+			foreach ( $this->_variations as &$variation ) {
+				$variation['_id'] = $id = $variation['variation_id'];
 
-				// Add price ID to data.
-				$edd_price['_id'] = $id;
+				$licenses = (int) get_post_meta( $id, '_api_activations', true );
+
 
 				// Check if free plan.
-				$amount = floatval( $edd_price['amount'] );
-
+				$amount = floatval( $variation['display_regular_price'] );
 				if ( .0 >= $amount ) {
-					$this->_edd_free_price_id = $this->get_edd_unique_price_id( $id );
+					$this->_free_price_id = $this->get_wc_unique_price_id( $id );
 					continue;
 				}
 
-				if ( ! isset( $edd_paid_plan_pricing_by_licenses[ $licenses ] ) ) {
-					$edd_paid_plan_pricing_by_licenses[ $licenses ] = array();
+				if ( ! isset( $plan_pricing[ $licenses ] ) ) {
+					$plan_pricing[ $licenses ] = array();
 				}
 
 				// Paid plan.
-				$edd_paid_plan_pricing_by_licenses[ $licenses ][] = $edd_price;
+				$plan_pricing[ $licenses ][] = $variation;
 
-				$this->_edd_has_paid_plan = true;
+				$this->_has_paid_plan = true;
 			}
 
-			foreach ( $edd_paid_plan_pricing_by_licenses as $licenses => $edd_prices ) {
+			foreach ( $plan_pricing as $licenses => $variations ) {
 				$pricing = array(
-					'edd_prices_ids' => array()
+					'wc_prices_ids' => array()
 				);
 
 				$pricing['licenses'] = ( $licenses > 0 ) ? $licenses : null;
 
-				foreach ( $edd_prices as $edd_price ) {
-					$amount = floatval( $edd_price['amount'] );
+				foreach ( $variations as $variation ) {
+					$amount = floatval( $variation['display_regular_price'] );
 
-					$billing_cycle                     = $this->get_billing_cycle( $edd_price );
+					$billing_cycle                     = $this->get_billing_cycle( $variation['_id'] );
 					$pricing["{$billing_cycle}_price"] = $amount;
 
-					// We need to store EDD price IDs list to link them with the pricing.
-					$pricing['edd_prices_ids'][] = $this->get_edd_unique_price_id( $edd_price['_id'] );
+					// We need to store WC price IDs list to link them with the pricing.
+					$pricing['wc_prices_ids'][] = $this->get_wc_unique_price_id( $variation['_id'] );
 				}
 
-				$this->_edd_paid_plan_pricing[] = $pricing;
+				$this->_plan_pricing[] = $pricing;
 			}
 		}
 
 		#endregion
 
 		#--------------------------------------------------------------------------------
-		#region EDD Required Data Getters
+		#region WC Required Data Getters
 		#--------------------------------------------------------------------------------
 
 		/**
@@ -202,7 +158,7 @@
 		 * @return bool
 		 */
 		protected function get_local_module_id() {
-			return $this->_edd_download->ID;
+			return $this->_product->id;
 		}
 
 		/**
@@ -214,11 +170,11 @@
 		 * @return bool
 		 */
 		protected function local_has_free_plan() {
-			return isset( $this->_edd_free_price_id );
+			return isset( $this->_free_price_id );
 		}
 
 		/**
-		 * Get free price ID as the plan ID since EDD doesn't have a concept of plans.
+		 * Get free price ID as the plan ID since WC doesn't have a concept of plans.
 		 *
 		 * @author Vova Feldman (@svovaf)
 		 * @since  1.0.0
@@ -226,7 +182,7 @@
 		 * @return bool
 		 */
 		protected function get_local_free_plan_id() {
-			return $this->_edd_download->ID . ':' . $this->_edd_free_price_id . 'free';
+			return $this->_product->id . ':' . $this->_free_price_id . 'free';
 		}
 
 		/**
@@ -238,7 +194,7 @@
 		 * @return bool
 		 */
 		protected function local_has_paid_plan() {
-			return $this->_edd_has_paid_plan;
+			return $this->_has_paid_plan;
 		}
 
 		/**
@@ -253,7 +209,7 @@
 		 * @return string[]
 		 */
 		protected function get_local_paid_plan_pricing_ids( $index ) {
-			return $this->_edd_paid_plan_pricing[ $index ]['edd_prices_ids'];
+			return $this->_plan_pricing[ $index ]['wc_prices_ids'];
 		}
 
 		/**
@@ -265,7 +221,7 @@
 		 * @return bool
 		 */
 		protected function get_local_paid_plan_pricing_count() {
-			return count( $this->_edd_paid_plan_pricing );
+			return count( $this->_plan_pricing );
 		}
 
 		/**
@@ -279,8 +235,8 @@
 		protected function get_local_paid_plan_pricing_index_by_licenses( $licenses ) {
 			$index = 0;
 
-			foreach ( $this->_edd_paid_plan_pricing as $edd_pricing ) {
-				if ( $licenses === $edd_pricing['licenses'] ) {
+			foreach ( $this->_plan_pricing as $pricing ) {
+				if ( $licenses === $pricing['licenses'] ) {
 					return $index;
 				}
 
@@ -299,7 +255,7 @@
 		 * @return int|null
 		 */
 		protected function get_local_paid_plan_pricing_licenses( $index ) {
-			return $this->_edd_paid_plan_pricing[ $index ]['licenses'];
+			return $this->_plan_pricing[ $index ]['licenses'];
 		}
 
 		#endregion
@@ -317,14 +273,12 @@
 		 * @return array
 		 */
 		protected function get_module_for_api() {
-			$download_post = WP_Post::get_instance( $this->_edd_download->get_ID() );
-
 			return array(
-				'slug'           => $download_post->post_name,
-				'title'          => $this->_edd_download->get_name(),
+				'slug'           => $this->_product->post->post_name,
+				'title'          => $this->_product->get_title(),
 				'type'           => 'plugin',
 				'business_model' => $this->get_local_business_model(),
-				'created_at'     => $download_post->post_date_gmt,
+				'created_at'     => $this->_product->post->post_date_gmt,
 			);
 		}
 
@@ -377,9 +331,9 @@
 		 */
 		protected function get_paid_plan_pricing_for_api( $index ) {
 			// Clone.
-			$pricing = $this->_edd_paid_plan_pricing[ $index ];
+			$pricing = $this->_plan_pricing[ $index ];
 
-			unset( $pricing['edd_prices_ids'] );
+			unset( $pricing['wc_prices_ids'] );
 
 			return $pricing;
 		}

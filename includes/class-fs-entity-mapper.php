@@ -28,7 +28,7 @@
 		private $_table_name;
 
 		/**
-		 * @var string E.g. EDD or WOO
+		 * @var string E.g. WC or WOO
 		 */
 		private $_namespace;
 

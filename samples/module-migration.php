@@ -1,11 +1,11 @@
 <?php
-	if ( ! defined( 'MY__EDD_STORE_URL' ) ) {
-		// This should point to your EDD install.
-		define( 'MY__EDD_STORE_URL', 'https://your-edd-store.com' ); // you should use your own CONSTANT name, and be sure to replace it throughout this file
+	if ( ! defined( 'MY__WC_STORE_URL' ) ) {
+		// This should point to your WC install.
+		define( 'MY__WC_STORE_URL', 'https://your-wc-store.com' ); // you should use your own CONSTANT name, and be sure to replace it throughout this file
 	}
 
-	// The EDD download ID of your product.
-	define( 'MY__EDD_DOWNLOAD_ID', '12345' ); // you should use your own CONSTANT name, and be sure to replace it throughout this file
+	// The WC download ID of your product.
+	define( 'MY__WC_DOWNLOAD_ID', '12345' ); // you should use your own CONSTANT name, and be sure to replace it throughout this file
 
 	/**
 	 * The license migration script.
@@ -16,9 +16,9 @@
 	 * @author   Vova Feldman (@svovaf)
 	 * @since    1.0.0
 	 *
-	 * @param int    $edd_download_id The context EDD download ID (from your store).
-	 * @param string $edd_license_key The current site's EDD license key.
-	 * @param string $edd_store_url   Your EDD store URL.
+	 * @param int    $edd_download_id The context WC download ID (from your store).
+	 * @param string $edd_license_key The current site's WC license key.
+	 * @param string $edd_store_url   Your WC store URL.
 	 * @param bool   $redirect
 	 *
 	 * @return bool
@@ -53,7 +53,7 @@
 
 		if ( false === $response ) {
 			$response = wp_remote_post(
-				$edd_store_url . '/fs-api/edd/migrate-license.json',
+				$edd_store_url . '/fs-api/wc/migrate-license.json',
 				array_merge( $install_details, array(
 					'timeout'   => 15,
 					'sslverify' => false,
@@ -129,7 +129,7 @@
 	 * @author   Vova Feldman (@svovaf)
 	 * @since    1.0.0
 	 *
-	 * @param int $edd_download_id The context EDD download ID (from your store).
+	 * @param int $edd_download_id The context WC download ID (from your store).
 	 *
 	 * @return bool Is successfully spawned the migration request.
 	 */
@@ -188,9 +188,9 @@
 	 * @author   Vova Feldman (@svovaf)
 	 * @since    1.0.0
 	 *
-	 * @param int    $edd_download_id The context EDD download ID (from your store).
-	 * @param string $edd_license_key The current site's EDD license key.
-	 * @param string $edd_store_url   Your EDD store URL.
+	 * @param int    $edd_download_id The context WC download ID (from your store).
+	 * @param string $edd_license_key The current site's WC license key.
+	 * @param string $edd_store_url   Your WC store URL.
 	 * @param bool   $is_blocking     Special argument for testing. When false, will initiate the migration in the same
 	 *                                HTTP request.
 	 *
@@ -262,7 +262,7 @@
 	}
 
 	/**
-	 * Try to activate EDD license.
+	 * Try to activate WC license.
 	 *
 	 * @author   Vova Feldman (@svovaf)
 	 * @since    1.0.0
@@ -274,14 +274,14 @@
 	function my_edd_activate_license( $license_key ) {
 		// Call the custom API.
 		$response = wp_remote_post(
-			MY__EDD_STORE_URL,
+			MY__WC_STORE_URL,
 			array(
 				'timeout'   => 15,
 				'sslverify' => false,
 				'body'      => array(
 					'edd_action' => 'activate_license',
 					'license'    => $license_key,
-					'item_id'    => MY__EDD_DOWNLOAD_ID,
+					'item_id'    => MY__WC_DOWNLOAD_ID,
 					'url'        => home_url()
 				)
 			)
@@ -296,7 +296,7 @@
 		$license_data = json_decode( wp_remote_retrieve_body( $response ) );
 
 		if ( 'valid' === $license_data->license ) {
-			// Store EDD license key.
+			// Store WC license key.
 			update_option( 'edd_sample_license_key', $license_key );
 		} else {
 			return false;
@@ -307,7 +307,7 @@
 
 	/**
 	 * If installation failed due to license activation  on Freemius try to
-	 * activate the license on EDD first, and if successful, migrate the license
+	 * activate the license on WC first, and if successful, migrate the license
 	 * with a blocking request.
 	 *
 	 * This method will only be triggered upon failed module installation.
@@ -342,11 +342,11 @@
 		     ( is_string( $response->error ) && false !== strpos( strtolower( $response->error ), 'license' ) )
 		) {
 			if ( my_edd_activate_license( $license_key ) ) {
-				// Successfully activated license on EDD, try to migrate to Freemius.
+				// Successfully activated license on WC, try to migrate to Freemius.
 				if ( do_my_edd2fs_license_migration(
-					MY__EDD_DOWNLOAD_ID,
+					MY__WC_DOWNLOAD_ID,
 					$license_key,
-					MY__EDD_STORE_URL,
+					MY__WC_STORE_URL,
 					true
 				) ) {
 					/**
@@ -426,27 +426,27 @@
 	#endregion
 
 	if ( ! defined( 'DOING_CRON' ) ) {
-		// Pull EDD license key from storage.
+		// Pull WC license key from storage.
 		$license_key = trim( get_option( 'edd_sample_license_key' ) );
 
 		if ( empty( $license_key ) ) {
 			/**
-			 * If no EDD license is set it might be one of the following:
+			 * If no WC license is set it might be one of the following:
 			 *  1. User purchased module directly from Freemius.
-			 *  2. User did purchase from EDD, but has never activated the license on this site.
+			 *  2. User did purchase from WC, but has never activated the license on this site.
 			 *  3. User got access to the code without ever purchasing.
 			 *
 			 * In case it's reason #2, hook to Freemius `after_install_failure` event, and if
 			 * the installation failure resulted due to an issue with the license, try to
-			 * activate the license on EDD first, and if works, migrate to Freemius right after.
+			 * activate the license on WC first, and if works, migrate to Freemius right after.
 			 */
 			my_freemius()->add_filter( 'after_install_failure', 'my_try_migrate_on_activation', 10, 2 );
 		} else {
 			if ( ! defined( 'DOING_AJAX' ) ) {
 				my_non_blocking_edd2fs_license_migration(
-					MY__EDD_DOWNLOAD_ID,
+					MY__WC_DOWNLOAD_ID,
 					$license_key,
-					MY__EDD_STORE_URL
+					MY__WC_STORE_URL
 				);
 			}
 		}

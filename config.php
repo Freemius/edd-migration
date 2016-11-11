@@ -22,12 +22,8 @@
 		define( 'WP_FSM__MAIN_ENDPOINT', 'fs-api' );
 	}
 
-	if ( ! defined( 'WP_FS__NAMESPACE_EDD' ) ) {
-		define( 'WP_FS__NAMESPACE_EDD', 'EDD' );
-	}
-
 	if ( ! defined( 'WP_FS__NAMESPACE_WC' ) ) {
-		define( 'WP_FS__NAMESPACE_WC', 'WC' );
+		define( 'WP_FS__NAMESPACE_WC', 'wc' );
 	}
 
 	if ( ! defined( 'WP_FS__IS_PRODUCTION_MODE' ) ) {
