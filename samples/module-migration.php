@@ -234,17 +234,18 @@
 			return 'freemius_installed_before';
 		}
 
-		$migration_uid = fs_get_transient( 'fsm_edd_' . $edd_download_id );
+		$key = 'fsm_edd_' . $edd_download_id;
 
-		$in_migration = ( false !== $migration_uid );
+		$migration_uid = fs_get_transient( $key );
+		$in_migration  = ! empty( $_REQUEST[ $key ] );
 
 		if ( ! $is_blocking && ! $in_migration ) {
 			// Initiate license migration in a non-blocking request.
 			return spawn_my_edd2fs_license_migration( $edd_download_id );
 		} else {
 			if ( $is_blocking ||
-			     ( ! empty( $_REQUEST[ 'fsm_edd_' . $edd_download_id ] ) &&
-			       $migration_uid === $_REQUEST[ 'fsm_edd_' . $edd_download_id ] &&
+			     ( ! empty( $_REQUEST[ $key] ) &&
+			       $migration_uid === $_REQUEST[ $key ] &&
 			       'POST' === $_SERVER['REQUEST_METHOD'] )
 			) {
 				$success = do_my_edd2fs_license_migration(
