@@ -134,8 +134,6 @@
 	 * @return bool Is successfully spawned the migration request.
 	 */
 	function spawn_my_edd2fs_license_migration( $edd_download_id ) {
-		global $wp;
-
 		#region Make sure only one request handles the migration (prevent race condition)
 
 		// Generate unique md5.
@@ -158,7 +156,12 @@
 
 		#endregion
 
-		$current_url   = add_query_arg( $wp->query_string, '', home_url( $wp->request ) );
+		$host        = $_SERVER['HTTP_HOST'];
+		$uri         = $_SERVER['REQUEST_URI'];
+		$port        = $_SERVER['SERVER_PORT'];
+		$port        = ( ( ! WP_FS__IS_HTTPS && $port == '80' ) || ( WP_FS__IS_HTTPS && $port == '443' ) ) ? '' : ':' . $port;
+		$current_url = ( WP_FS__IS_HTTPS ? 'https' : 'http' ) . "://{$host}{$port}{$uri}";
+
 		$migration_url = add_query_arg(
 			'fsm_edd_' . $edd_download_id,
 			$migration_uid,
