@@ -17,7 +17,11 @@
 		/**
 		 * @var string
 		 */
-		public $type;
+		public $namespace;
+		/**
+		 * @var string
+		 */
+		public $entity_type;
 		/**
 		 * @var string
 		 */
