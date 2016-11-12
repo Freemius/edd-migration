@@ -66,12 +66,14 @@
 					$period    = 'never';
 				}
 
+				$license_limit = get_post_meta( $download->ID, '_edd_sl_limit', true );
+
 				$this->_edd_prices = array(
 					// Set the EDD price ID as ZERO when the download doesn't have variable prices.
 					0 => array(
 						'recurring'     => $recurring ? 'yes' : 'no',
 						'period'        => $period,
-						'license_limit' => 0,
+						'license_limit' => is_numeric( $license_limit ) ? $license_limit : 0,
 						'amount'        => $download->get_price(),
 					)
 				);
@@ -99,22 +101,64 @@
 		private function get_billing_cycle( $edd_price ) {
 			$billing_cycle = 'lifetime';
 
-			if ( ! empty( $edd_price['recurring'] ) &&
-			     'yes' === $edd_price['recurring'] &&
-			     ! empty( $edd_price['period'] ) &&
-			     'never' !== $edd_price['period']
-			) {
-				switch ( $edd_price['period'] ) {
-					case 'year':
-						$billing_cycle = 'annual';
-						break;
-					case 'month':
-						$billing_cycle = 'monthly';
-						break;
-					default:
-						// @todo Throw an error when billing cycle is not supported.
-						$billing_cycle = 'monthly';
-						break;
+			if ( class_exists( 'EDD_Recurring' ) ) {
+				if ( ! empty( $edd_price['recurring'] ) &&
+				     'yes' === $edd_price['recurring'] &&
+				     ! empty( $edd_price['period'] ) &&
+				     'never' !== $edd_price['period']
+				) {
+					switch ( $edd_price['period'] ) {
+						case 'year':
+							$billing_cycle = 'annual';
+							break;
+						case 'month':
+							$billing_cycle = 'monthly';
+							break;
+						default:
+							// @todo Throw an error when billing cycle is not supported.
+							$billing_cycle = 'monthly';
+							break;
+					}
+				}
+			} else {
+				if ( ! empty( $edd_price['is_lifetime'] ) &&
+				     $edd_price['is_lifetime']
+				) {
+					$billing_cycle = 'lifetime';
+				} else {
+					// Alias.
+					$download_id = $this->_edd_download->ID;
+
+					$is_limited = get_post_meta( $download_id, 'edd_sl_download_lifetime', true );
+					$is_limited = empty( $is_limited );
+
+					if ( $is_limited ) {
+						$exp_unit   = get_post_meta( $download_id, '_edd_sl_exp_unit', true );
+						$exp_length = get_post_meta( $download_id, '_edd_sl_exp_length', true );
+
+						if ( 4 == $exp_length && 'weeks' === $exp_unit ) {
+							$billing_cycle = 'monthly';
+						} else if ( 12 == $exp_length && 'months' === $exp_unit ) {
+							$billing_cycle = 'annual';
+						} else {
+							if ( 1 != $exp_length ) {
+								// @todo Throw an error when billing cycle
+							}
+
+							switch ( $exp_unit ) {
+								case 'years':
+									$billing_cycle = 'annual';
+									break;
+								case 'months':
+									$billing_cycle = 'monthly';
+									break;
+								default:
+									// @todo Throw an error when billing cycle is not supported.
+									$billing_cycle = 'monthly';
+									break;
+							}
+						}
+					}
 				}
 			}
 
