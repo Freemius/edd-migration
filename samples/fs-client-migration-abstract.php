@@ -258,12 +258,22 @@
 				$this->get_current_url()
 			);
 
+			// Add cookies to trigger request with same user access permissions.
+			$cookies = array();
+			foreach ( $_COOKIE as $name => $value ) {
+				$cookies[] = new WP_Http_Cookie( array(
+					'name'  => $name,
+					'value' => $value
+				) );
+			}
+
 			wp_remote_post(
 				$migration_url,
 				array(
 					'timeout'   => 0.01,
 					'blocking'  => false,
 					'sslverify' => false,
+					'cookies'   => $cookies,
 				)
 			);
 
