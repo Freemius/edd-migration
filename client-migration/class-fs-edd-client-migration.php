@@ -15,7 +15,7 @@
 	}
 
 	// Include abstract class.
-	require_once dirname( __FILE__ ) . '/fs-client-migration-abstract.php';
+	require_once dirname( __FILE__ ) . '/class-fs-client-migration-abstract.php';
 
 	/**
 	 * Class My_EDD_Freemius_Migration

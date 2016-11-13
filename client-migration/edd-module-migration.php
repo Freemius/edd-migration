@@ -14,8 +14,8 @@
 		return;
 	}
 
-	require_once dirname( __FILE__ ) . '/fs-client-license-abstract.php';
-	require_once dirname( __FILE__ ) . '/fs-edd-client-migration.php';
+	require_once dirname( __FILE__ ) . '/class-fs-client-license-abstract.php';
+	require_once dirname( __FILE__ ) . '/class-fs-edd-client-migration.php';
 
 	class My_EDD_License_Key extends FS_Client_License_Abstract_v1 {
 		/**
