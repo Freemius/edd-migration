@@ -198,6 +198,23 @@
 		}
 
 		/**
+		 * Get current request full URL.
+		 *
+		 * @author   Vova Feldman (@svovaf)
+		 * @since    1.0.3
+		 *
+		 * @return string
+		 */
+		private function get_current_url() {
+			$host = $_SERVER['HTTP_HOST'];
+			$uri  = $_SERVER['REQUEST_URI'];
+			$port = $_SERVER['SERVER_PORT'];
+			$port = ( ( ! WP_FS__IS_HTTPS && $port == '80' ) || ( WP_FS__IS_HTTPS && $port == '443' ) ) ? '' : ':' . $port;
+
+			return ( WP_FS__IS_HTTPS ? 'https' : 'http' ) . "://{$host}{$port}{$uri}";
+		}
+
+		/**
 		 * Initiate a non-blocking HTTP POST request to the same URL
 		 * as the current page, with the addition of "fsm_{namespace}_{product_id}"
 		 * param in the query string that is set to a unique migration
@@ -235,16 +252,10 @@
 
 			#endregion
 
-			$host        = $_SERVER['HTTP_HOST'];
-			$uri         = $_SERVER['REQUEST_URI'];
-			$port        = $_SERVER['SERVER_PORT'];
-			$port        = ( ( ! WP_FS__IS_HTTPS && $port == '80' ) || ( WP_FS__IS_HTTPS && $port == '443' ) ) ? '' : ':' . $port;
-			$current_url = ( WP_FS__IS_HTTPS ? 'https' : 'http' ) . "://{$host}{$port}{$uri}";
-
 			$migration_url = add_query_arg(
 				"fsm_{$this->_namespace}_{$this->_product_id}",
 				$migration_uid,
-				$current_url
+				$this->get_current_url()
 			);
 
 			wp_remote_post(
