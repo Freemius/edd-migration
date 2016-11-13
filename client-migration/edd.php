@@ -17,6 +17,11 @@
 	require_once dirname( __FILE__ ) . '/class-fs-client-license-abstract.php';
 	require_once dirname( __FILE__ ) . '/class-fs-edd-client-migration.php';
 
+	/**
+	 * You should use your own unique CLASS name, and be sure to replace it
+	 * throughout this file. For example, if your product's name is "Awesome Product"
+	 * then you can rename it to "Awesome_Product_EDD_License_Key".
+	 */
 	class My_EDD_License_Key extends FS_Client_License_Abstract_v1 {
 		/**
 		 * @author   Vova Feldman (@svovaf)
@@ -25,6 +30,7 @@
 		 * @return string
 		 */
 		function get() {
+			// You should adjust this to load the license key of your EDD download.
 			return trim( get_option( 'edd_sample_license_key' ) );
 		}
 
@@ -37,13 +43,20 @@
 		 * @return bool True if successfully updated.
 		 */
 		function set( $license_key ) {
+			// You should adjust this to update the license key of your EDD download.
 			return update_option( 'edd_sample_license_key', $license_key );
 		}
 	}
 
 	new FS_EDD_Client_Migration_v1(
+		// This should be replaced with your custom Freemius shortcode.
 		my_freemius(),
+
+		// This should point to your EDD store root URL.
 		'https://your-edd-store.com',
+
+		// The EDD download ID of your product.
 		'1234',
+
 		new My_EDD_License_Key()
 	);
