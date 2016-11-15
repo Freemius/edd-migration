@@ -14,7 +14,6 @@ class FS_Entity_Map extends FS_Entity {
 
 	#region Properties
 
-<<<<<<< HEAD
 	/**
 	 * @var string
 	 */
@@ -31,24 +30,6 @@ class FS_Entity_Map extends FS_Entity {
 	 * @var number
 	 */
 	public $remote_id;
-=======
-		/**
-		 * @var string
-		 */
-		public $namespace;
-		/**
-		 * @var string
-		 */
-		public $entity_type;
-		/**
-		 * @var string
-		 */
-		public $local_id;
-		/**
-		 * @var number
-		 */
-		public $remote_id;
->>>>>>> Freemius/feature/woocommerce
 
 	#endregion Properties
 

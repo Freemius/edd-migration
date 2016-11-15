@@ -445,21 +445,6 @@
 		// Pull WC license key from storage.
 		$license_key = trim( get_option( 'edd_sample_license_key' ) );
 
-<<<<<<< HEAD
-		if ( empty( $license_key ) ) {
-			/**
-			 * If no WC license is set it might be one of the following:
-			 *  1. User purchased module directly from Freemius.
-			 *  2. User did purchase from WC, but has never activated the license on this site.
-			 *  3. User got access to the code without ever purchasing.
-			 *
-			 * In case it's reason #2, hook to Freemius `after_install_failure` event, and if
-			 * the installation failure resulted due to an issue with the license, try to
-			 * activate the license on WC first, and if works, migrate to Freemius right after.
-			 */
-			my_freemius()->add_filter( 'after_install_failure', 'my_try_migrate_on_activation', 10, 2 );
-		} else {
-=======
 		/**
 		 * If no EDD license is set it might be one of the following:
 		 *  1. User purchased module directly from Freemius.
@@ -474,7 +459,6 @@
 		my_freemius()->add_filter( 'after_install_failure', 'my_try_migrate_on_activation', 10, 2 );
 
 		if ( ! empty( $license_key ) ) {
->>>>>>> Freemius/feature/woocommerce
 			if ( ! defined( 'DOING_AJAX' ) ) {
 				my_non_blocking_edd2fs_license_migration(
 					MY__WC_DOWNLOAD_ID,
