@@ -308,6 +308,26 @@ AND
 		function get_by_remote_entity( FS_Entity $entity ) {
 			return $this->get_by_remote( $entity->get_type(), $entity->id );
 		}
+
+		/**
+		 * Clear all namespace mapping.
+		 *
+		 * @author Vova Feldman (@svovaf)
+		 * @since  1.0.2
+		 *
+		 * @return false|int
+		 */
+		function clear_mapping()
+		{
+			global $wpdb;
+
+			return $wpdb->delete(
+				$this->_table_name,
+				array(
+					'namespace' => $this->_namespace,
+				)
+			);
+		}
 	}
 
 	/**

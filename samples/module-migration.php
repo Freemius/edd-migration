@@ -134,8 +134,6 @@
 	 * @return bool Is successfully spawned the migration request.
 	 */
 	function spawn_my_edd2fs_license_migration( $edd_download_id ) {
-		global $wp;
-
 		#region Make sure only one request handles the migration (prevent race condition)
 
 		// Generate unique md5.
@@ -148,7 +146,7 @@
 		 * we only want that one request will succeed writing this
 		 * option to the storage.
 		 */
-		if ( fs_add_transient( 'fsm_edd_' . $edd_download_id, $migration_uid ) ) {
+		if ( fs_add_transient( 'fsm_edd_' . $edd_download_id, $migration_uid, MINUTE_IN_SECONDS ) ) {
 			$loaded_migration_uid = fs_get_transient( 'fsm_edd_' . $edd_download_id );
 		}
 
@@ -158,7 +156,12 @@
 
 		#endregion
 
-		$current_url   = add_query_arg( $wp->query_string, '', home_url( $wp->request ) );
+		$host        = $_SERVER['HTTP_HOST'];
+		$uri         = $_SERVER['REQUEST_URI'];
+		$port        = $_SERVER['SERVER_PORT'];
+		$port        = ( ( ! WP_FS__IS_HTTPS && $port == '80' ) || ( WP_FS__IS_HTTPS && $port == '443' ) ) ? '' : ':' . $port;
+		$current_url = ( WP_FS__IS_HTTPS ? 'https' : 'http' ) . "://{$host}{$port}{$uri}";
+
 		$migration_url = add_query_arg(
 			'fsm_edd_' . $edd_download_id,
 			$migration_uid,
@@ -231,17 +234,18 @@
 			return 'freemius_installed_before';
 		}
 
-		$migration_uid = fs_get_transient( 'fsm_edd_' . $edd_download_id );
+		$key = 'fsm_edd_' . $edd_download_id;
 
-		$in_migration = ( false !== $migration_uid );
+		$migration_uid = fs_get_transient( $key );
+		$in_migration  = ! empty( $_REQUEST[ $key ] );
 
 		if ( ! $is_blocking && ! $in_migration ) {
 			// Initiate license migration in a non-blocking request.
 			return spawn_my_edd2fs_license_migration( $edd_download_id );
 		} else {
 			if ( $is_blocking ||
-			     ( ! empty( $_REQUEST[ 'fsm_edd_' . $edd_download_id ] ) &&
-			       $migration_uid === $_REQUEST[ 'fsm_edd_' . $edd_download_id ] &&
+			     ( ! empty( $_REQUEST[ $key] ) &&
+			       $migration_uid === $_REQUEST[ $key ] &&
 			       'POST' === $_SERVER['REQUEST_METHOD'] )
 			) {
 				$success = do_my_edd2fs_license_migration(
@@ -409,7 +413,9 @@
 			$transient_option  = '_fs_transient_' . $transient;
 			$transient_timeout = '_fs_transient_timeout_' . $transient;
 
-			if ( false === get_option( $transient_option ) ) {
+			$current_value = fs_get_transient($transient);
+
+			if ( false === $current_value ) {
 				$autoload = 'yes';
 				if ( $expiration ) {
 					$autoload = 'no';
@@ -417,6 +423,16 @@
 				}
 
 				return add_option( $transient_option, $value, '', $autoload );
+			}
+			else
+			{
+				// If expiration is requested, but the transient has no timeout option,
+				// delete, then re-create the timeout.
+				if ( $expiration ) {
+					if ( false === get_option( $transient_timeout ) ) {
+						add_option( $transient_timeout, time() + $expiration, '', 'no' );
+					}
+				}
 			}
 
 			return false;
@@ -429,6 +445,7 @@
 		// Pull WC license key from storage.
 		$license_key = trim( get_option( 'edd_sample_license_key' ) );
 
+<<<<<<< HEAD
 		if ( empty( $license_key ) ) {
 			/**
 			 * If no WC license is set it might be one of the following:
@@ -442,6 +459,22 @@
 			 */
 			my_freemius()->add_filter( 'after_install_failure', 'my_try_migrate_on_activation', 10, 2 );
 		} else {
+=======
+		/**
+		 * If no EDD license is set it might be one of the following:
+		 *  1. User purchased module directly from Freemius.
+		 *  2. User did purchase from EDD, but has never activated the license on this site.
+		 *  3. User got access to the code without ever purchasing.
+		 *
+		 * In case it's reason #2 or if the license key is wrong, the migration will not work.
+		 * Since we do want to support EDD licenses, hook to Freemius `after_install_failure`
+		 * event. That way, if a license activation fails, try activating the license on EDD
+		 * first, and if works, migrate to Freemius right after.
+		 */
+		my_freemius()->add_filter( 'after_install_failure', 'my_try_migrate_on_activation', 10, 2 );
+
+		if ( ! empty( $license_key ) ) {
+>>>>>>> Freemius/feature/woocommerce
 			if ( ! defined( 'DOING_AJAX' ) ) {
 				my_non_blocking_edd2fs_license_migration(
 					MY__WC_DOWNLOAD_ID,

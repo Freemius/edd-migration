@@ -64,7 +64,7 @@
 					}
 				}
 
-				$local_modules = array_merge($synced_local_modules, $not_synced_local_modules);
+				$local_modules = array_merge( $synced_local_modules, $not_synced_local_modules );
 			?>
 
 			<?php foreach ( $local_modules as $local_module ) : ?>
@@ -83,19 +83,23 @@
 								echo ( false !== $remote_plan_id ) ? $remote_plan_id : '';
 							?></td>
 						<td>
-							<button class="button"><?php _efs( 'Resync' ) ?></button>
+							<button class="button"><?php _efs( 'Resync', 'freemius' ) ?></button>
 						</td>
 					<?php else : ?>
 						<td class="fs--module-id"></td>
 						<td class="fs--paid-plan-id"></td>
 						<td style="text-align: right">
-							<button class="button button-primary"><?php _efs( 'Sync to Freemius' ) ?></button>
+							<button class="button button-primary"><?php _efs( 'Sync to Freemius', 'freemius' ) ?></button>
 						</td>
 					<?php endif ?>
 				</tr>
 			<?php endforeach ?>
 			</tbody>
 		</table>
+
+		<br>
+
+		<button id="clear_mapping" class="button"><?php _efs( 'Clear Mapping Data' ) ?></button>
 	<?php endif ?>
 	<?php if ( ! $is_connected ) : ?>
 		<p><?php printf(
@@ -208,7 +212,6 @@
 			}, function (result) {
 				if (result.success) {
 					$container.addClass('fs--synced');
-					$container.removeClass('fs--syncing');
 					$moduleID.html(result.data.module_id);
 					$paidPlanID.html(result.data.plan_id);
 
@@ -221,9 +224,32 @@
 				// Recover button's label.
 				$this.html('<?php _efs( 'Re-sync' ) ?>');
 				$this.prop('disabled', false);
+				$container.removeClass('fs--syncing');
 			});
 
 			return false;
+		});
+
+		$('#clear_mapping').click(function () {
+			if (confirm("<?php _e('Are you sure you\'d like to clear all mapping data?', 'freemius') ?>")) {
+				$.post(ajaxurl, {
+					action: 'fs_clear_mapping'
+				}, function (result) {
+					if (result.success) {
+						$('.fs--synced').each(function () {
+							var $this = $(this);
+							$this.removeClass('fs--syncing fs--synced');
+							$this.find('.fs--module-id').html('');
+							$this.find('.fs--paid-plan-id').html('');
+							$this.find('.button').removeClass('button-primary').html('<?php __fs( 'Sync to Freemius', 'freemius' ) ?>')
+						});
+
+						alert('<?php _e('All mapping data was successfully deleted.', 'freemius') ?>');
+					} else {
+						alert('<?php _e('Oops... Something went wrong, please try again in few min.', 'freemius' ) ?>');
+					}
+				});
+			}
 		});
 	})
 	(jQuery);
