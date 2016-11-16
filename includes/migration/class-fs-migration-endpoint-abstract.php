@@ -391,7 +391,7 @@
 		 * @return \FS_Plugin
 		 */
 		protected function get_module_by_slug( $slug ) {
-			$result = $this->get_api()->get( '/plugins.json' );
+			$result = $this->get_api()->get( '/plugins.json?all=true' );
 
 			// @todo check valid result
 
