@@ -193,7 +193,24 @@
 		 * @return string
 		 */
 		protected function get_local_license_id() {
-			return $this->ep->order->order_id;
+
+			global $wpdb;
+
+			$sql = "
+			SELECT permission_id
+			FROM {$wpdb->prefix}woocommerce_downloadable_product_permissions
+			WHERE user_email = %s
+			AND order_key = %s
+			AND product_id = %s";
+
+			$args = array(
+				$this->ep->order->license_email,
+				$this->ep->order->order_key,
+				$this->ep->order->product_id,
+			);
+
+			// Returns an Object
+			return $wpdb->get_var( $wpdb->prepare( $sql, $args ) );
 		}
 
 		/**
@@ -212,7 +229,7 @@
 			 * Limit the ID to 32 chars since the entity mapping
 			 * local_id column is limited to 32 chars.
 			 */
-			return $this->ep->site_uid;
+			return $this->ep->wcam_site_id;
 		}
 
 		/**

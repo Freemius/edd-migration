@@ -38,7 +38,7 @@
 					return $this->_order;
 				break;
 				default:
-					$this->get_param( $name );
+					return $this->get_param( $name );
 			}
 
 			return null;
@@ -98,23 +98,24 @@
 			require_once WP_FSM__DIR_INCLUDES . '/class-fs-endpoint-exception.php';
 
 			$url         = 'http://wp/sfpfs/usr';
-			$email       = 'theguy@example.com';
-			$license_key = 'wc_order_58244d828095e_am_pLl1UmGbD0eb';
+			$email       = 'shramee.srivastav@gmail.com';
+			$license_key = 'wc_order_58303fc801265_am_S5AGJXlCCzbf';
 
 			$params = array(
-				"license_key"      => $license_key,
-				"site_url"         => $url,
-				"url"              => $url,
-				"plugin_version"   => '2.5.0',
-				"is_premium"       => true,
-				"site_uid"         => 'MoouenVlGG45',
-				"site_name"        => 'GetFrappe',
-				"language"         => 'en-US',
-				"charset"          => 'UTF-8',
-				"platform_version" => '4.6.1',
-				"php_version"      => '7.0.0',
-				"module_id"        => 'Storefront Pro',
-				"email"            => $email,
+				'license_key'      => $license_key,
+				'site_url'         => $url,
+				'url'              => $url,
+				'plugin_version'   => '2.5.0',
+				'is_premium'       => true,
+				'site_uid'         => '19ec32f60ec07ef9fae025ce5ac6bb86', // FS site uid
+				'site_name'        => 'GetFrappe',
+				'wcam_site_id'     => 'rAnDoM12',
+				'language'         => 'en-US',
+				'charset'          => 'UTF-8',
+				'platform_version' => '4.6.1',
+				'php_version'      => '7.0.0',
+				'module_title'     => 'Storefront Pro',
+				//'email'            => $email,
 				'is_active'        => true,
 			);
 
@@ -281,14 +282,17 @@
 		 */
 		protected function validate_params() {
 			// Software title ( which may not be same as product title ) is plugin identifier in WCAM
-			$plugin_title = $this->get_param( 'module_id' );
+			$plugin_title = $this->get_param( 'module_title' );
+
+			if ( ! $this->get_param( 'email' ) ) {
+				$this->_request_data['email'] = $this->query_email_for_key();
+			}
 
 			// Get order
 			$order_data = WCAM()->helpers->get_order_info_by_email_with_order_key(
 				$this->get_param( 'email' ), $this->get_param( 'license_key' )
 			);
 
-			//
 			$order_data['product_id'] = WCAM()->helpers->get_product_id_by_software_title(
 				$plugin_title, $order_data['order_id']
 			);
@@ -302,6 +306,22 @@
 			}
 
 			$this->_order = (object) $order_data;
+		}
+
+
+		private function query_email_for_key() {
+			global $wpdb;
+
+			$sql = "
+			SELECT user_email
+			FROM {$wpdb->prefix}woocommerce_downloadable_product_permissions
+			WHERE order_key = %s
+			";
+
+			$args = explode( '_am_', $this->get_param('license_key') );
+
+			// Returns an Object
+			return $wpdb->get_var( $wpdb->prepare( $sql, $args ) );
 		}
 
 		#endregion
