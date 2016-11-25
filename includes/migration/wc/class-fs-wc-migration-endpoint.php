@@ -99,7 +99,7 @@
 
 			$url         = 'http://wp/sfpfs/usr';
 			$email       = 'shramee.srivastav@gmail.com';
-			$license_key = 'wc_order_58303fc801265_am_S5AGJXlCCzbf';
+			$license_key = 'wc_order_583468387d63c_am_DKpGZTJBJDVH';
 
 			$params = array(
 				'license_key'      => $license_key,
@@ -140,7 +140,7 @@
 		 */
 		protected function get_local_paid_plan_id( $product_id ) {
 			$product = wc_get_product( $product_id );
-			return $product_id . ':' . ( $product->is_type( 'variable' ) ? '1' : '0' );
+			return $product->get_parent() . ':' . $product_id;
 		}
 
 		/**
@@ -293,9 +293,8 @@
 				$this->get_param( 'email' ), $this->get_param( 'license_key' )
 			);
 
-			$order_data['product_id'] = WCAM()->helpers->get_product_id_by_software_title(
-				$plugin_title, $order_data['order_id']
-			);
+			$order_data['product_id'] = empty( $order_data['variable_product_id'] ) ? 
+				$order_data['parent_product_id'] : $order_data['variable_product_id'];
 
 			// Before checking license with WC, make sure module is synced.
 			if ( ! $order_data['product_id'] ){
