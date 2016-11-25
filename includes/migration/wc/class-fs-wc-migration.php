@@ -94,7 +94,7 @@
 
 			return; // Subscriptions not implemented
 
-			$this->_wc_subscription = $this->get_edd_subscription(
+			$this->_wc_subscription = $this->get_wc_subscription(
 				$download_id,
 				$initial_payment_id
 			);
@@ -126,7 +126,7 @@
 		 *
 		 * @return \WC_Subscription|false
 		 */
-		private function get_edd_subscription( $download_id, $parent_payment_id ) {
+		private function get_wc_subscription( $download_id, $parent_payment_id ) {
 			throw new Exception( 'Not implemented' );
 
 			if ( ! class_exists( 'WC_Recurring' ) ) {
@@ -291,43 +291,6 @@
 		 * @return string
 		 */
 		protected function get_local_pricing_id() {
-			$price_id = 0;
-
-			if ( $this->_product->is_type( 'variable' ) ) {
-
-				$price_id = (int) self::$_edd_sl->get_price_id( $this->_edd_license->ID );
-
-				if ( 0 === $price_id ) {
-					/**
-					 * Couldn't find matching price ID which means it's a legacy license.
-					 *
-					 * Fetch the price ID that has the same license activations quota.
-					 */
-					$edd_prices = $this->_product->get_prices();
-
-					$edd_license_activations_limit = self::$_edd_sl->get_license_limit( $this->_product->ID,
-						$this->_edd_license->ID );
-
-					$price_found = false;
-					foreach ( $edd_prices as $id => $edd_price ) {
-						if ( $edd_license_activations_limit == $edd_price['license_limit'] ) {
-							$price_id    = $id;
-							$price_found = true;
-							break;
-						}
-					}
-
-					if ( ! $price_found ) {
-						/**
-						 * If license limit isn't matching any of the prices, use the first
-						 * price ID.
-						 */
-						reset( $edd_prices );
-						$price_id = key( $edd_prices );
-					}
-				}
-			}
-
 			return $this->ep->order->parent_product_id . ':' . $this->ep->order->product_id;
 		}
 
@@ -572,6 +535,9 @@
 		 * @return int
 		 */
 		private function get_local_billing_cycle_in_months() {
+			// @todo Adjust to work with WC Subscriptions plugin. For now, assume annual plans.
+			return 12;
+
 			switch ( $this->_wc_subscription->period ) {
 				case 'day':
 				case 'week':
@@ -666,8 +632,7 @@
 		 * @return int|null
 		 */
 		private function get_license_quota() {
-			$quota = (int) $this->ep->order->_api_activations_parent;
-
+			$quota = (int) $this->ep->order->_api_activations;
 			return ( $quota > 0 ) ? $quota : null;
 		}
 
