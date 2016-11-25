@@ -98,8 +98,7 @@
 			require_once WP_FSM__DIR_INCLUDES . '/class-fs-endpoint-exception.php';
 
 			$url         = 'http://wp/sfpfs/usr';
-			$email       = 'shramee.srivastav@gmail.com';
-			$license_key = 'wc_order_583468387d63c_am_DKpGZTJBJDVH';
+			$license_key = 'wc_order_5645a84f75f0f_am_kyidNs5CzIlu';
 
 			$params = array(
 				'license_key'      => $license_key,
@@ -115,7 +114,6 @@
 				'platform_version' => '4.6.1',
 				'php_version'      => '7.0.0',
 				'module_title'     => 'Storefront Pro',
-				//'email'            => $email,
 				'is_active'        => true,
 			);
 
