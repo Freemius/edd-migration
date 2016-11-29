@@ -1,6 +1,6 @@
 <?php
 	/**
-	 * @package     Freemius for EDD Add-On
+	 * @package     Freemius for WC Add-On
 	 * @copyright   Copyright (c) 2015, Freemius, Inc.
 	 * @license     http://opensource.org/licenses/gpl-2.0.php GNU Public License
 	 * @since       1.0.0
@@ -23,7 +23,7 @@
 
 ?>
 <div class="wrap">
-	<h2><?php printf( __fs( 'freemius-x-settings' ), WP_FS__NAMESPACE_EDD ) ?></h2>
+	<h2><?php printf( __fs( 'freemius-x-settings' ), WP_FS__NAMESPACE_WC ) ?></h2>
 
 	<?php if ( $is_connected ) : ?>
 		<table class="form-table">
@@ -69,7 +69,7 @@
 
 			<?php foreach ( $local_modules as $local_module ) : ?>
 				<?php $module_id = $endpoint->get_remote_module_id( $local_module->id ) ?>
-				<?php $is_synced = is_numeric( $module_id ) ?>
+				<?php $is_synced = is_numeric( $module_id ); ?>
 				<tr data-local-module-id="<?php echo $local_module->id ?>"
 				    class="<?php echo $is_synced ? 'fs--synced' : '' ?>">
 					<td><i class="dashicons dashicons-yes"></i></td>
@@ -218,6 +218,7 @@
 					alert('<?php _e('W00t W00t! Module was successfully synced to Freemius. Refresh your Freemius Dashboard and you should be able to see all the data.', 'freemius') ?>');
 				} else {
 					alert('<?php _e('Oops... Something went wrong during the data sync, please try again in few min.', 'freemius' ) ?>');
+					console.log( result );
 				}
 
 				// Recover button's label.

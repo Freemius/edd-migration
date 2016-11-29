@@ -14,6 +14,7 @@
 
 	/**
 	 * Class FS_WC_Migration_Endpoint
+	 * @property stdClass $order Data from $_order using magic getter
 	 */
 	class FS_WC_Migration_Endpoint extends FS_Migration_Endpoint_Abstract {
 
@@ -21,6 +22,27 @@
 		 * @var FS_WC_Migration_Endpoint
 		 */
 		private static $_instance;
+
+		/**
+		 * @var stdClass Order data Example in /tests/order.txt
+		 */
+		private $_order;
+
+		/**
+		 * @param string $name Property to return
+		 * @return mixed|null Value if property exists else null
+		 */
+		public function __get( $name ) {
+			switch ( $name ) {
+				case 'order':
+					return $this->_order;
+				break;
+				default:
+					return $this->get_param( $name );
+			}
+
+			return null;
+		}
 
 		public static function instance() {
 			if ( ! isset( self::$_instance ) ) {
@@ -34,9 +56,7 @@
 
 			$this->init( WP_FS__NAMESPACE_WC );
 
-			if ( false && ! defined( 'DOING_AJAX' ) ) {
-				$this->test_full_migration();
-			}
+			add_action( 'init', array( $this, 'maybe_test_full_migration' ) );
 		}
 
 		#--------------------------------------------------------------------------------
@@ -72,26 +92,29 @@
 		 * @author   Vova Feldman (@svovaf)
 		 * @since    1.0.0
 		 */
-		private function test_full_migration() {
-			$url         = 'http://test9.freemius.com';
-			$download_id = 25;
-			$license_key = '74062bc8b9cc256823f8f08d0f8feedf';
+		public function maybe_test_full_migration() {
+			if ( ! isset( $_GET['sfpfs-mig-test'] ) ) return;
+
+			require_once WP_FSM__DIR_INCLUDES . '/class-fs-endpoint-exception.php';
+
+			$url         = 'http://wp/sfpfs/usr';
+			$license_key = 'wc_order_5645a84f75f0f_am_kyidNs5CzIlu';
 
 			$params = array(
 				'license_key'      => $license_key,
-				'module_id'        => $download_id,
-				'url'              => $url,
 				'site_url'         => $url,
-				'plugin_version'   => '1.2.1',
-				'site_uid'         => $this->get_anonymous_id( $url ),
-				'site_name'        => 'Freemius Test',
-				'platform_version' => get_bloginfo( 'version' ),
-				'php_version'      => phpversion(),
-				'language'         => get_bloginfo( 'language' ),
-				'charset'          => get_bloginfo( 'charset' ),
+				'url'              => $url,
+				'plugin_version'   => '2.5.0',
 				'is_premium'       => true,
+				'site_uid'         => '19ec32f60ec07ef9fae025ce5ac6bb86', // FS site uid
+				'site_name'        => 'GetFrappe',
+				'wcam_site_id'     => 'rAnDoM12',
+				'language'         => 'en-US',
+				'charset'          => 'UTF-8',
+				'platform_version' => '4.6.1',
+				'php_version'      => '7.0.0',
+				'module_title'     => 'Storefront Pro',
 				'is_active'        => true,
-				'is_uninstalled'   => false,
 			);
 
 			$this->maybe_process_api_request( $params );
@@ -104,20 +127,35 @@
 		#--------------------------------------------------------------------------------
 
 		/**
+		 * Return the WC plan ID.
+		 *
+		 * @author Vova Feldman
+		 * @since  1.0.0
+		 *
+		 * @param string $product_id
+		 *
+		 * @return string
+		 */
+		protected function get_local_paid_plan_id( $product_id ) {
+			$product = wc_get_product( $product_id );
+			return $product->get_parent() . ':' . $product_id;
+		}
+
+		/**
 		 * Map WC download into FS object.
 		 *
 		 * @author Vova Feldman (@svovaf)
 		 * @since  1.0.0
 		 *
-		 * @param EDD_Download $local_module
+		 * @param WC_Product $local_module
 		 *
 		 * @return FS_Plugin
 		 */
 		protected function local_to_remote_module( $local_module ) {
 			$module        = new FS_Plugin();
-			$module->id    = $local_module->get_ID();
+			$module->id    = $local_module->id;
 			$module->slug  = $local_module->post_name;
-			$module->title = $local_module->get_name();
+			$module->title = $local_module->get_title();
 
 			return $module;
 		}
@@ -135,12 +173,12 @@
 			 * @var WP_Post[] $downloads
 			 */
 			$downloads = get_posts( array(
-				'post_type'      => 'download',
+				'post_type'      => 'product',
 				'posts_per_page' => - 1,
 			) );
 
 			for ( $i = 0, $len = count( $downloads ); $i < $len; $i ++ ) {
-				$downloads[ $i ] = new EDD_Download( $downloads[ $i ]->ID );
+				$downloads[ $i ] = wc_get_product( $downloads[ $i ]->ID );
 			}
 
 			return $downloads;
@@ -154,14 +192,11 @@
 		 *
 		 * @param string $local_module_id
 		 *
-		 * @return false|\EDD_Download
+		 * @return false|WC_Product
 		 */
 		protected function get_local_module_by_id( $local_module_id ) {
-			$download_post = WP_Post::get_instance( $local_module_id );
-
-			return ( empty( $download_post ) || 'download' !== $download_post->post_type ) ?
-				false :
-				new EDD_Download( $local_module_id );
+			return ( 'product' !== get_post_type( $local_module_id ) ) ? false :
+				wc_get_product( $local_module_id );
 		}
 
 		/**
@@ -187,16 +222,16 @@
 		 * @param mixed     $local_module
 		 * @param FS_Plugin $module
 		 *
-		 * @return \FS_EDD_Download_Migration
+		 * @return \FS_WC_Download_Migration
 		 */
 		protected function get_local_module_migration_manager( $local_module, FS_Plugin $module = null ) {
-			require_once WP_FSM__DIR_MIGRATION . '/edd/class-fs-edd-download-migration.php';
+			require_once WP_FSM__DIR_MIGRATION . '/wc/class-fs-wc-download-migration.php';
 
 			if ( is_null( $module ) ) {
 				$module = $this->get_module_by_slug( $this->get_local_module_slug( $local_module ) );
 			}
 
-			return new FS_EDD_Download_Migration(
+			return new FS_WC_Download_Migration(
 				$this->get_developer(),
 				$module,
 				$local_module
@@ -216,12 +251,12 @@
 		 * @throws FS_Endpoint_Exception
 		 */
 		protected function migrate_install_license() {
+
 			require_once WP_FSM__DIR_MIGRATION . '/class-fs-migration-abstract.php';
-			require_once WP_FSM__DIR_MIGRATION . '/edd/class-fs-edd-migration.php';
+			require_once WP_FSM__DIR_MIGRATION . '/wc/class-fs-wc-migration.php';
 
-			$license_id = edd_software_licensing()->get_license_by_key( $this->get_param( 'license_key' ) );
+			$migration = FS_WC_Migration::instance( $this );
 
-			$migration = FS_WC_Migration::instance( $license_id );
 			$migration->set_api( $this->get_api() );
 
 			// Migrate customer, purchase/subscription, billing and license.
@@ -236,7 +271,7 @@
 		#--------------------------------------------------------------------------------
 
 		/**
-		 * Validate EDD download license parameters.
+		 * Validate request parameters.
 		 *
 		 * @author Vova Feldman
 		 * @since  1.0.0
@@ -244,83 +279,46 @@
 		 * @throws FS_Endpoint_Exception
 		 */
 		protected function validate_params() {
-			// Require download ID.
-			$this->require_unsigned_int( 'module_id' );
+			// Software title ( which may not be same as product title ) is plugin identifier in WCAM
+			$plugin_title = $this->get_param( 'module_title' );
 
-			$download_id = $this->get_param( 'module_id' );
-			$license_key = $this->get_param( 'license_key' );
-			$url         = $this->get_param( 'url' );
-
-			// Before checking license with EDD, make sure module is synced.
-			if (false === $this->get_remote_module_id( $download_id )){
-				throw new FS_Endpoint_Exception( "Invalid download ID ({$download_id}).", 'invalid_download_id', 400 );
+			if ( ! $this->get_param( 'email' ) ) {
+				$this->_request_data['email'] = $this->query_email_for_key();
 			}
 
-			// Get EDD license state.
-			$edd_license_state = edd_software_licensing()->check_license( array(
-				'item_id'   => $download_id,
-				'item_name' => '',
-				'key'       => $license_key,
-				'url'       => $url,
-			) );
+			// Get order
+			$order_data = WCAM()->helpers->get_order_info_by_email_with_order_key(
+				$this->get_param( 'email' ), $this->get_param( 'license_key' )
+			);
 
-			switch ( $edd_license_state ) {
-				case 'invalid':
-					// Invalid license key.
-					throw new FS_Endpoint_Exception( "Invalid license key ({$license_key}).", 'invalid_license_key',
-						400 );
-				case 'invalid_item_id':
-					// Invalid download ID.
-					throw new FS_Endpoint_Exception( "Invalid download ID ({$download_id}).", 'invalid_download_id',
-						400 );
-				/**
-				 * Migrate expired license since all EDD licenses are not blocking.
-				 */
-				case 'expired':
-					/**
-					 * License not yet activated.
-					 *
-					 * This use-case should not happen since if the client triggered a migration
-					 * request with a valid license key, it means that the license was activated
-					 * at least once. Hence, 'inactive' isn't possible.
-					 */
-				case 'inactive':
-					/**
-					 * License was disabled, therefore, ...
-					 *
-					 * @todo what to do in that case?
-					 */
-				case 'disabled':
-					/**
-					 * Migrate license & site.
-					 *
-					 * Based on the EDD SL logic this result is trigger when it's a production
-					 * site (not localhost), and the site license wasn't activated.
-					 *
-					 * It can happen for example when the user trying to activate a license
-					 * that is already fully utilized.
-					 *
-					 * @todo what to do in that case?
-					 */
-				case 'site_inactive':
-					/**
-					 * Migrate license & site.
-					 *
-					 * License is valid and activated for the context site.
-					 */
-				case 'valid':
-					break;
-				case 'item_name_mismatch':
-					/**
-					 * This use case should never happen since we check the license state
-					 * based on the EDD download ID, not the name.
-					 */
-					break;
-				default:
-					// Unexpected license state. This case should never happen.
-					throw new FS_Endpoint_Exception( 'Unexpected EDD download license state.' );
-					break;
+			$order_data['product_id'] = empty( $order_data['variable_product_id'] ) ? 
+				$order_data['parent_product_id'] : $order_data['variable_product_id'];
+
+			// Before checking license with WC, make sure module is synced.
+			if ( ! $order_data['product_id'] ){
+				throw new FS_Endpoint_Exception(
+					"You don't have permission to access plugin with identifier <code>{$plugin_title}</code>.", 'invalid_plugin_identifier',
+					400
+				);
 			}
+
+			$this->_order = (object) $order_data;
+		}
+
+
+		private function query_email_for_key() {
+			global $wpdb;
+
+			$sql = "
+			SELECT user_email
+			FROM {$wpdb->prefix}woocommerce_downloadable_product_permissions
+			WHERE order_key = %s
+			";
+
+			$args = explode( '_am_', $this->get_param('license_key') );
+
+			// Returns an Object
+			return $wpdb->get_var( $wpdb->prepare( $sql, $args ) );
 		}
 
 		#endregion
@@ -341,5 +339,5 @@
 		return FS_WC_Migration_Endpoint::instance();
 	}
 
-	// Get Freemius EDD Migration running.
+	// Get Freemius WC Migration running.
 	fs_wc_migration_manager();

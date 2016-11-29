@@ -1,4 +1,4 @@
-=== Freemius for Easy Digital Downloads Migration ===
+=== Freemius for WooCommerce API Manager Migration ===
 Contributors: freemius
 Tags: freemius, fs, easy digital downloads, edd, bridge, adapter, add-on, plugins
 Requires at least: 3.9
@@ -7,7 +7,7 @@ Stable Tag: 1.0
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
-Lazy migration of EDD licenses to Freemius.
+Lazy migration of WC licenses to Freemius.
 
 == Description ==
 
