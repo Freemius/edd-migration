@@ -747,7 +747,6 @@
 		protected function get_purchase_for_api() {
 			$purchase                         = array();
 			$purchase['billing_cycle']        = 0;
-			$purchase['payment_method']       = $this->_wc_order->payment_method;
 			$purchase['customer_external_id'] = 'wc_customer_' . $this->ep->order->user_id;
 			$purchase['license_key']          = substr( $this->ep->order->api_key, 6 );
 			$purchase['license_quota']        = $this->get_license_quota(); // Preserve license activations limit.
@@ -760,7 +759,9 @@
 				$purchase['license_expires_at'] = $license_expiration;
 			}
 
-			if ( ! $purchase['payment_method'] ) {
+			if ( false !== strpos( strtolower( $this->_wc_order->payment_method ), 'paypal' ) ) {
+				$purchase['payment_method'] = 'paypal';
+			} else {
 				$purchase['payment_method'] = 'cc';
 			}
 
