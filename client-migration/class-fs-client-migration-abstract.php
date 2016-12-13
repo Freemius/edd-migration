@@ -134,15 +134,15 @@
 			if ( false === $response ) {
 				$response = wp_remote_post(
 					$this->get_migration_endpoint(),
-					array_merge( $install_details, array(
+					array(
 						'timeout'   => 15,
 						'sslverify' => false,
 						'body'      => json_encode( array_merge( $install_details, array(
 							'module_id'   => $this->_product_id,
 							'license_key' => $this->_license_key,
-							'url'         => home_url()
+							'url'         => home_url(),
 						) ) ),
-					) )
+					)
 				);
 
 				// Cache result (5-min).
