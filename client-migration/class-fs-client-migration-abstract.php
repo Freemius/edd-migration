@@ -386,14 +386,14 @@
 				return $response;
 			}
 
-			$license_key = $args['license_key'];
-
 			if ( ( is_object( $response->error ) && 'invalid_license_key' === $response->error->code ) ||
 			     ( is_string( $response->error ) && false !== strpos( strtolower( $response->error ), 'license' ) )
 			) {
-				if ( $this->activate_store_license( $license_key ) ) {
-					// Successfully activated license on store, try to migrate to Freemius.
-					if ( $this->do_license_migration( true ) ) {
+				// Set license for migration.
+				$this->_license_key = $args['license_key'];
+
+				// Try to migrate the license.
+				if ( 'success' === $this->non_blocking_license_migration( true ) ) {
 						/**
 						 * If successfully migrated license and got to this point (no redirect),
 						 * it means that it's an AJAX installation (opt-in), therefore,
@@ -402,7 +402,6 @@
 						return $this->_fs->get_after_activation_url( 'after_connect_url' );
 					}
 				}
-			}
 
 			return $response;
 		}
