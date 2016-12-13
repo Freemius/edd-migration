@@ -235,7 +235,7 @@
 
 			// Test credentials.
 			$fs_api    = $this->get_api();
-			$developer = $fs_api->get( '/' );
+			$developer = $fs_api->get( '/', true );
 
 			if ( ! is_object( $developer ) || isset( $developer->error ) ) {
 				// Request failed, bad credentials.
@@ -391,7 +391,7 @@
 		 * @return \FS_Plugin
 		 */
 		protected function get_module_by_slug( $slug ) {
-			$result = $this->get_api()->get( '/plugins.json?all=true' );
+			$result = $this->get_api()->get( '/plugins.json?all=true', true );
 
 			// @todo check valid result
 
@@ -839,7 +839,7 @@
 		protected function sync_modules_to_freemius_by_slug() {
 			require_once WP_FSM__DIR_INCLUDES . '/migration/class-fs-module-migration-abstract.php';
 
-			$result = $this->get_api()->get( '/plugins.json' );
+			$result = $this->get_api()->get( '/plugins.json?all=true', true );
 
 			// @todo check valid result
 
