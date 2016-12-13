@@ -51,13 +51,16 @@
 		 * @param string                        $store_url        Store URL.
 		 * @param string                        $product_id       Product ID.
 		 * @param FS_Client_License_Abstract_v1 $license_accessor License accessor.
+		 * @param bool                          $is_blocking      Special argument for testing. When false, will
+		 *                                                        initiate the migration in the same HTTP request.
 		 */
 		protected function init(
 			$namespace,
 			Freemius $freemius,
 			$store_url,
 			$product_id,
-			FS_Client_License_Abstract_v1 $license_accessor
+			FS_Client_License_Abstract_v1 $license_accessor,
+			$is_blocking = false
 		) {
 			$this->_namespace        = strtolower( $namespace );
 			$this->_fs               = $freemius;
@@ -81,7 +84,7 @@
 
 			if ( ! empty( $this->_license_key ) ) {
 				if ( ! defined( 'DOING_AJAX' ) ) {
-					$this->non_blocking_license_migration();
+					$this->non_blocking_license_migration( $is_blocking );
 				}
 			}
 		}
@@ -394,14 +397,14 @@
 
 				// Try to migrate the license.
 				if ( 'success' === $this->non_blocking_license_migration( true ) ) {
-						/**
-						 * If successfully migrated license and got to this point (no redirect),
-						 * it means that it's an AJAX installation (opt-in), therefore,
-						 * override the response with the after connect URL.
-						 */
-						return $this->_fs->get_after_activation_url( 'after_connect_url' );
-					}
+					/**
+					 * If successfully migrated license and got to this point (no redirect),
+					 * it means that it's an AJAX installation (opt-in), therefore,
+					 * override the response with the after connect URL.
+					 */
+					return $this->_fs->get_after_activation_url( 'after_connect_url' );
 				}
+			}
 
 			return $response;
 		}

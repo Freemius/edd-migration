@@ -27,19 +27,23 @@
 		 * @param string                        $edd_store_url        Your EDD store URL.
 		 * @param int                           $edd_download_id      The context EDD download ID (from your store).
 		 * @param FS_Client_License_Abstract_v1 $edd_license_accessor License accessor.
+		 * @param bool                          $is_blocking          Special argument for testing. When false, will
+		 *                                                            initiate the migration in the same HTTP request.
 		 */
 		public function __construct(
 			Freemius $freemius,
 			$edd_store_url,
 			$edd_download_id,
-			FS_Client_License_Abstract_v1 $edd_license_accessor
+			FS_Client_License_Abstract_v1 $edd_license_accessor,
+			$is_blocking = false
 		) {
 			$this->init(
 				'edd',
 				$freemius,
 				$edd_store_url,
 				$edd_download_id,
-				$edd_license_accessor
+				$edd_license_accessor,
+				$is_blocking
 			);
 		}
 	}

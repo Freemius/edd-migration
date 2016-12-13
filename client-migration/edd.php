@@ -58,5 +58,8 @@
 		// The EDD download ID of your product.
 		'1234',
 
-		new My_EDD_License_Key()
+		new My_EDD_License_Key(),
+
+		// For testing, you can change that argument to TRUE to trigger the migration in the same HTTP request.
+		false
 	);
