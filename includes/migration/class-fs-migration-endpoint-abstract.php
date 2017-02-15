@@ -637,8 +637,13 @@
 				'language',
 				'charset',
 				'platform_version',
-				'php_version',
 			) );
+
+			if ( ! isset( $this->_request_data[ 'php_version' ] ) &&
+			     ! isset( $this->_request_data[ 'programming_language_version' ] )
+			) {
+				$this->require_params( array( 'programming_language_version' ) );
+			}
 
 			$this->require_non_empty_params( array(
 				// License key.

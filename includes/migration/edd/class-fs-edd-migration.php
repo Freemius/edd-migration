@@ -927,7 +927,9 @@
 			$install['language']                     = $this->_edd_install_data['language'];
 			$install['charset']                      = $this->_edd_install_data['charset'];
 			$install['platform_version']             = $this->_edd_install_data['platform_version'];
-			$install['programming_language_version'] = $this->_edd_install_data['php_version'];
+			$install['programming_language_version'] = !empty($this->_edd_install_data['php_version']) ?
+				$this->_edd_install_data['php_version'] :
+				$this->_edd_install_data['programming_language_version'];
 			$install['license_id']                   = $license_id;
 
 			$install_at = $this->get_local_install_datetime();
