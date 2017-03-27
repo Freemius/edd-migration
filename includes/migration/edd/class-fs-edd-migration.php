@@ -580,6 +580,11 @@
 			return $formatted_license_expiration;
 		}
 
+        /**
+         * @var string|false
+         */
+		private $_customerIP;
+
 		/**
 		 * Try to get customer's IP address.
 		 *
@@ -595,49 +600,58 @@
 		 * @return string|false
 		 */
 		private function get_customer_ip() {
-			// Try to get IP from initial payment.
-			if ( ! empty( $this->_edd_payment->ip ) ) {
-				return $this->_edd_payment->ip;
-			}
+            if ( ! isset( $this->_customerIP ) ) {
+                // Try to get IP from initial payment.
+                if ( ! empty( $this->_edd_payment->ip ) ) {
+                    $this->_customerIP = $this->_edd_payment->ip;
+                } // Try to get IP from the subscription renewals.
+                else if ( $this->local_is_subscription() &&
+                          is_array( $this->_edd_renewals )
+                ) {
+                    foreach ( $this->_edd_renewals as $edd_renewal ) {
+                        if ( ! empty( $edd_renewal->ip ) ) {
+                            $this->_customerIP = $edd_renewal->ip;
+                            break;
+                        }
+                    }
+                }
 
-			// Try to get IP from the subscription renewals.
-			if ( $this->local_is_subscription() &&
-			     is_array( $this->_edd_renewals )
-			) {
-				foreach ( $this->_edd_renewals as $edd_renewal ) {
-					if ( ! empty( $edd_renewal->ip ) ) {
-						return $edd_renewal->ip;
-					}
-				}
-			}
+                if ( ! isset( $this->_customerIP ) ) {
+                    // Try to fetch IP from license activation log.
+                    $logs = edd_software_licensing()->get_license_logs( $this->_edd_license->ID );
 
-			// Try to fetch IP from license activation log.
-			$logs = edd_software_licensing()->get_license_logs( $this->_edd_license->ID );
-			if ( is_array( $logs ) && 0 < count( $logs ) ) {
-				$activation_log_post_name_prefix        = 'log-license-activated-';
-				$activation_log_post_name_prefix_length = strlen( $activation_log_post_name_prefix );
+                    if ( is_array( $logs ) && 0 < count( $logs ) ) {
+                        $activation_log_post_name_prefix        = 'log-license-activated-';
+                        $activation_log_post_name_prefix_length = strlen( $activation_log_post_name_prefix );
 
-				foreach ( $logs as $log ) {
-					if ( ! has_term( 'renewal_notice', 'edd_log_type', $log->ID ) ) {
-						/**
-						 * @var WP_Post $log
-						 */
-						if ( $activation_log_post_name_prefix === substr( $log->post_name, 0,
-								$activation_log_post_name_prefix_length )
-						) {
-							$activation_info = json_decode( get_post_field( 'post_content', $log->ID ) );
-							if ( isset( $activation_info->REMOTE_ADDR ) &&
-							     ! empty( $activation_info->REMOTE_ADDR )
-							) {
-								return $activation_info->REMOTE_ADDR;
-							}
-						}
-					}
-				}
-			}
+                        foreach ( $logs as $log ) {
+                            if ( ! has_term( 'renewal_notice', 'edd_log_type', $log->ID ) ) {
+                                /**
+                                 * @var WP_Post $log
+                                 */
+                                if ( $activation_log_post_name_prefix === substr( $log->post_name, 0,
+                                        $activation_log_post_name_prefix_length )
+                                ) {
+                                    $activation_info = json_decode( get_post_field( 'post_content', $log->ID ) );
+                                    if ( isset( $activation_info->REMOTE_ADDR ) &&
+                                         ! empty( $activation_info->REMOTE_ADDR )
+                                    ) {
+                                        $this->_customerIP = $activation_info->REMOTE_ADDR;
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
 
-			return false;
-		}
+                if ( ! isset( $this->_customerIP ) ) {
+                    $this->_customerIP = false;
+                }
+            }
+
+            return $this->_customerIP;
+        }
 
 		/**
 		 * Check if sandbox purchase.
@@ -996,7 +1010,12 @@
 				$purchase['license_expires_at'] = $license_expiration;
 			}
 
-			if ( $this->local_is_sandbox_purchase() ) {
+            $ip = $this->get_customer_ip();
+            if ( ! empty( $ip ) ) {
+                $purchase['ip'] = $ip;
+            }
+
+            if ( $this->local_is_sandbox_purchase() ) {
 				$purchase['is_sandbox'] = true;
 			}
 
@@ -1051,7 +1070,12 @@
 			 */
 			$subscription['license_expires_at'] = $this->get_local_license_expiration();
 
-			if ( $this->is_sandbox_subscription() ) {
+            $ip = $this->get_customer_ip();
+            if ( ! empty( $ip ) ) {
+                $subscription['ip'] = $ip;
+            }
+
+            if ( $this->is_sandbox_subscription() ) {
 				$subscription['is_sandbox'] = true;
 			}
 
