@@ -51,13 +51,16 @@
 		 * @param string                        $store_url        Store URL.
 		 * @param string                        $product_id       Product ID.
 		 * @param FS_Client_License_Abstract_v1 $license_accessor License accessor.
+		 * @param bool                          $is_blocking      Special argument for testing. When false, will
+		 *                                                        initiate the migration in the same HTTP request.
 		 */
 		protected function init(
 			$namespace,
 			Freemius $freemius,
 			$store_url,
 			$product_id,
-			FS_Client_License_Abstract_v1 $license_accessor
+			FS_Client_License_Abstract_v1 $license_accessor,
+			$is_blocking = false
 		) {
 			$this->_namespace        = strtolower( $namespace );
 			$this->_fs               = $freemius;
@@ -81,7 +84,7 @@
 
 			if ( ! empty( $this->_license_key ) ) {
 				if ( ! defined( 'DOING_AJAX' ) ) {
-					$this->non_blocking_license_migration();
+					$this->non_blocking_license_migration( $is_blocking );
 				}
 			}
 		}
@@ -134,15 +137,15 @@
 			if ( false === $response ) {
 				$response = wp_remote_post(
 					$this->get_migration_endpoint(),
-					array_merge( $install_details, array(
+					array(
 						'timeout'   => 15,
 						'sslverify' => false,
 						'body'      => json_encode( array_merge( $install_details, array(
 							'module_id'   => $this->_product_id,
 							'license_key' => $this->_license_key,
-							'url'         => home_url()
+							'url'         => home_url(),
 						) ) ),
-					) )
+					)
 				);
 
 				// Cache result (5-min).
@@ -386,21 +389,20 @@
 				return $response;
 			}
 
-			$license_key = $args['license_key'];
-
 			if ( ( is_object( $response->error ) && 'invalid_license_key' === $response->error->code ) ||
 			     ( is_string( $response->error ) && false !== strpos( strtolower( $response->error ), 'license' ) )
 			) {
-				if ( $this->activate_store_license( $license_key ) ) {
-					// Successfully activated license on store, try to migrate to Freemius.
-					if ( $this->do_license_migration( true ) ) {
-						/**
-						 * If successfully migrated license and got to this point (no redirect),
-						 * it means that it's an AJAX installation (opt-in), therefore,
-						 * override the response with the after connect URL.
-						 */
-						return $this->_fs->get_after_activation_url( 'after_connect_url' );
-					}
+				// Set license for migration.
+				$this->_license_key = $args['license_key'];
+
+				// Try to migrate the license.
+				if ( 'success' === $this->non_blocking_license_migration( true ) ) {
+					/**
+					 * If successfully migrated license and got to this point (no redirect),
+					 * it means that it's an AJAX installation (opt-in), therefore,
+					 * override the response with the after connect URL.
+					 */
+					return $this->_fs->get_after_activation_url( 'after_connect_url' );
 				}
 			}
 
