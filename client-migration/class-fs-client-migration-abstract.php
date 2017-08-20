@@ -352,18 +352,6 @@
 		}
 
 		/**
-		 * Try to platform's activate license via the store.
-		 *
-		 * @author   Vova Feldman (@svovaf)
-		 * @since    1.0.0
-		 *
-		 * @param string $license_key
-		 *
-		 * @return bool
-		 */
-		abstract protected function activate_store_license( $license_key );
-
-		/**
 		 * If installation failed due to license activation on Freemius try to
 		 * activate the license on store first, and if successful, migrate the license
 		 * with a blocking request.
