@@ -86,7 +86,11 @@
             $this->_entity_mapper = FS_Entity_Mapper::instance( $namespace );
 
             add_action( 'wp_ajax_fs_sync_module', array( &$this, '_sync_module_to_freemius_callback' ) );
+            add_action( 'wp_ajax_fs_store_mapping', array( &$this, '_store_mapping_callback' ) );
             add_action( 'wp_ajax_fs_clear_mapping', array( &$this, '_clear_mapping_callback' ) );
+            add_action( 'wp_ajax_fs_fetch_modules', array( &$this, '_fetch_modules' ) );
+            add_action( 'wp_ajax_fs_fetch_module_plans', array( &$this, '_fetch_module_plans' ) );
+            add_action( 'wp_ajax_fs_fetch_pricing', array( &$this, '_fetch_pricing' ) );
         }
 
         #endregion
@@ -772,6 +776,63 @@
          */
         protected function shoot_json_success( $data = null, $message = '' ) {
             $this->shoot_json_result( true, $data, $message );
+        }
+
+        /**
+         * @author Vova Feldman (@svovaf)
+         * @since  1.2.1
+         * @since  1.2.2.5 The AJAX action names are based on the module ID, not like the non-AJAX actions that are
+         *         based on the slug for backward compatibility.
+         *
+         * @param string $tag
+         *
+         * @return string
+         */
+        function get_ajax_action( $tag ) {
+            return self::get_ajax_action_static( $tag );
+        }
+
+        /**
+         * @author Vova Feldman (@svovaf)
+         * @since  1.2.1.7
+         *
+         * @param string $tag
+         *
+         * @return string
+         */
+        function get_ajax_security( $tag ) {
+            return wp_create_nonce( $this->get_ajax_action( $tag ) );
+        }
+
+        /**
+         * @author Vova Feldman (@svovaf)
+         * @since  1.2.1.7
+         *
+         * @param string $tag
+         */
+        function check_ajax_referer( $tag ) {
+            check_ajax_referer( $this->get_ajax_action( $tag ), 'security' );
+        }
+
+        /**
+         * @author Vova Feldman (@svovaf)
+         * @since  1.2.1.6
+         * @since  1.2.2.5 The AJAX action names are based on the module ID, not like the non-AJAX actions that are
+         *         based on the slug for backward compatibility.
+         *
+         * @param string      $tag
+         * @param number|null $module_id
+         *
+         * @return string
+         */
+        private static function get_ajax_action_static( $tag, $module_id = null ) {
+            $action = "fs_{$tag}";
+
+            if ( ! empty( $module_id ) ) {
+                $action .= "_{$module_id}";
+            }
+
+            return $action;
         }
 
         #endregion
