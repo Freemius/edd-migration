@@ -1,4 +1,4 @@
-<?
+<?php
 	/**
 	 * @package     Freemius Migration
 	 * @copyright   Copyright (c) 2016, Freemius, Inc.
