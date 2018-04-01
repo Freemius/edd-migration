@@ -44,7 +44,7 @@
         protected $_request_data;
 
         /**
-         * @var FS_Entity_Mapper
+         * @var FS_Entity_Mapper_Enriched
          */
         protected $_entity_mapper;
 
@@ -80,13 +80,20 @@
             if ( ! class_exists( 'FS_Entity_Mapper' ) ) {
                 require_once WP_FSM__DIR_INCLUDES . '/class-fs-entity-mapper.php';
             }
+            if ( ! class_exists( 'FS_Entity_Mapper_Enriched' ) ) {
+                require_once WP_FSM__DIR_INCLUDES . '/class-fs-entity-mapper-enriched.php';
+            }
 
             $this->_namespace     = $namespace;
             $this->_options       = FS_Option_Manager::get_manager( 'migration_options', true );
-            $this->_entity_mapper = FS_Entity_Mapper::instance( $namespace );
+            $this->_entity_mapper = FS_Entity_Mapper_Enriched::instance( $namespace );
 
             add_action( 'wp_ajax_fs_sync_module', array( &$this, '_sync_module_to_freemius_callback' ) );
+            add_action( 'wp_ajax_fs_store_mapping', array( &$this, '_store_mapping_callback' ) );
             add_action( 'wp_ajax_fs_clear_mapping', array( &$this, '_clear_mapping_callback' ) );
+            add_action( 'wp_ajax_fs_fetch_modules', array( &$this, '_fetch_modules' ) );
+            add_action( 'wp_ajax_fs_fetch_module_plans', array( &$this, '_fetch_module_plans' ) );
+            add_action( 'wp_ajax_fs_fetch_pricing', array( &$this, '_fetch_pricing' ) );
         }
 
         #endregion
@@ -171,10 +178,7 @@
          * @return false|number
          */
         function get_remote_paid_plan_id( $local_module_id ) {
-            return $this->get_remote_id(
-                FS_Plan::get_type(),
-                $this->get_local_paid_plan_id( $local_module_id )
-            );
+            return $this->_entity_mapper->get_remote_paid_plan_id( $this->get_local_paid_plan_id( $local_module_id ) );
         }
 
         /**
@@ -188,10 +192,7 @@
          * @return false|number
          */
         function get_remote_module_id( $local_module_id ) {
-            return $this->get_remote_id(
-                FS_Plugin::get_type(),
-                $local_module_id
-            );
+            return $this->_entity_mapper->get_remote_module_id( $local_module_id );
         }
 
         #endregion
@@ -412,7 +413,7 @@
          *
          * @return FS_Api
          */
-        protected function get_api() {
+        public function get_api() {
             if ( ! isset( $this->_api ) ) {
                 if ( ! class_exists( 'FS_Api' ) ) {
                     require_once WP_FSM__DIR_INCLUDES . '/class-fs-api.php';
@@ -478,12 +479,40 @@
          * @return mixed
          */
         protected function get_param( $name, $default = false ) {
-            return isset( $this->_request_data[ $name ] ) ?
-                ( is_string( $this->_request_data[ $name ] ) ?
-                    urldecode( $this->_request_data[ $name ] ) :
-                    $this->_request_data[ $name ]
-                ) :
-                $default;
+            if ( ! isset( $this->_request_data[ $name ] ) ) {
+                return $default;
+            }
+
+            if ( is_string( $this->_request_data[ $name ] ) ) {
+                return urldecode( $this->_request_data[ $name ] );
+            }
+
+            if ( is_array( $this->_request_data[ $name ] ) ) {
+                foreach ( $this->_request_data[ $name ] as $key => &$val ) {
+                    if (!is_array($val)) {
+                        $val = urldecode( $val );
+                    } else {
+                        foreach ( $val as $inner_key => &$inner_val ) {
+                            $inner_val = urldecode( $inner_val );
+                        }
+                    }
+                }
+            }
+
+            return $this->_request_data[ $name ];
+        }
+
+        /**
+         * Set API request parameter.
+         *
+         * @author Vova Feldman
+         * @since  1.1.0
+         *
+         * @param string $name
+         * @param mixed  $value
+         */
+        protected function set_param( $name, $value ) {
+            $this->_request_data[ $name ] = $value;
         }
 
         /**
@@ -495,6 +524,8 @@
          * @param array|null $test_request_data Special parameter for local testing.
          */
         public function maybe_process_api_request( $test_request_data = null ) {
+            require_once WP_FSM__DIR_INCLUDES . '/class-fs-endpoint-exception.php';
+
             if ( is_array( $test_request_data ) && ! empty( $test_request_data ) ) {
                 // Use testing request data.
                 $request_data = $test_request_data;
@@ -513,8 +544,6 @@
                     // Request path isn't matching the migration endpoint.
                     return;
                 }
-
-                require_once WP_FSM__DIR_INCLUDES . '/class-fs-endpoint-exception.php';
 
                 define( 'WP_FSM__MIGRATION_DOING_API_REQUEST', true );
 
@@ -536,7 +565,7 @@
 
                 $this->validate_all_params();
 
-                $account = $this->migrate_install_license();
+                $account = $this->migrate_license_and_installs();
 
                 $this->shoot_json_success( $account );
             } catch ( FS_Endpoint_Exception $e ) {
@@ -557,13 +586,16 @@
          * @author Vova Feldman
          * @since  1.0.0
          *
-         * @param array $params
+         * @param array      $params
+         * @param null|array $request_data
          *
-         * @throws FS_Endpoint_Exception
+         * @throws \FS_Endpoint_Exception
          */
-        protected function require_params( array $params ) {
+        protected function require_params( array $params, $request_data = null ) {
+            $request_data = is_array( $request_data ) ? $request_data : $this->_request_data;
+
             foreach ( $params as $p ) {
-                if ( ! isset( $this->_request_data[ $p ] ) ) {
+                if ( ! isset( $request_data[ $p ] ) ) {
                     throw new FS_Endpoint_Exception( "{$p} is a required parameter.", "{$p}_required" );
                 }
             }
@@ -577,13 +609,16 @@
          * @author Vova Feldman
          * @since  1.0.0
          *
-         * @param array $params
+         * @param array      $params
+         * @param null|array $request_data
          *
          * @throws FS_Endpoint_Exception
          */
-        protected function require_non_empty_params( array $params ) {
+        protected function require_non_empty_params( array $params, $request_data = null ) {
+            $request_data = is_array( $request_data ) ? $request_data : $this->_request_data;
+
             foreach ( $params as $p ) {
-                if ( empty( $this->_request_data[ $p ] ) ) {
+                if ( empty( $request_data[ $p ] ) ) {
                     throw new FS_Endpoint_Exception( "{$p} cannot be empty.", "{$p}_empty" );
                 }
             }
@@ -617,6 +652,30 @@
         }
 
         /**
+         * Checks if the context migration is a MS migration.
+         *
+         * @author Vova Feldman
+         * @since  1.1.0
+         *
+         * @return bool
+         */
+        protected function is_multisite_migration() {
+            return ! empty( $this->_request_data['sites'] );
+        }
+
+        /**
+         * Checks if bundle migration.
+         *
+         * @author Vova Feldman
+         * @since  1.1.0
+         *
+         * @return bool
+         */
+        protected function is_bundle_migration() {
+            return isset( $this->_request_data['children_license_keys'] );
+        }
+
+        /**
          * Validate common required params.
          *
          * @author Vova Feldman
@@ -625,31 +684,87 @@
          * @throws FS_Endpoint_Exception
          */
         protected function validate_all_params() {
+            $php_version_param_name = isset( $this->_request_data['php_version'] ) ?
+                'php_version' :
+                'programming_language_version';
+
             $this->require_params( array(
-                // License key.
-                'license_key',
-                // Install details.
-                'site_url',
+                // Plugin version details.
                 'plugin_version',
                 'is_premium',
-                'site_uid',
-                'site_name',
-                'language',
-                'charset',
+                // Environment details.
                 'platform_version',
+                $php_version_param_name,
             ) );
 
-            if ( ! isset( $this->_request_data['php_version'] ) &&
-                 ! isset( $this->_request_data['programming_language_version'] )
-            ) {
-                $this->require_params( array( 'programming_language_version' ) );
+            if ( ! $this->is_multisite_migration() ) {
+                $license_key_param_name = $this->is_bundle_migration() ?
+                    'children_license_keys' :
+                    'license_key';
+
+                // Site migration.
+                $this->require_params( array(
+                    'site_uid',
+                    'site_url',
+                    'site_name',
+                    'language',
+                    'charset',
+                ) );
+
+                $this->require_non_empty_params( array(
+                    // License key.
+                    $license_key_param_name,
+                    // Side ID.
+                    'site_uid',
+                    // Site URL.
+                    'site_url',
+                ) );
+            } else {
+                $sites = $this->_request_data['sites'];
+
+                // Multi-site network migration.
+                if ( ! is_array( $sites ) ) {
+                    throw new FS_Endpoint_Exception( "sites cannot be empty when migrating a multi-site network license.", "sites_empty" );
+                }
+
+                $require_site_level_licenses = (
+                    empty($this->_request_data['license_key']) &&
+                    empty($this->_request_data['children_license_keys'])
+                );
+
+                foreach ( $sites as $id => $site ) {
+                    $this->require_params( array(
+                        'uid',
+                        'url',
+                        'title',
+                        // Don't require language and charset. They might be empty and inherited from the MS level params.
+//                        'language',
+//                        'charset',
+                    ), $site );
+
+                    $this->require_non_empty_params( array(
+                        'uid',
+                        'url',
+                    ), $site );
+
+                    if ($require_site_level_licenses){
+                        /**
+                         * When there's no license level keys, require license in every
+                         * sub-site in the network.
+                         */
+                        $license_key_param_name = isset( $site['license_key'] ) ?
+                            'license_key' :
+                            'children_license_keys';
+
+                        $this->require_non_empty_params( array(
+                            $license_key_param_name,
+                        ), $site );
+                    }
+                }
             }
 
+
             $this->require_non_empty_params( array(
-                // License key.
-                'license_key',
-                // Install details.
-                'site_url',
                 'plugin_version',
             ) );
 
@@ -677,7 +792,7 @@
                 }
             }
 
-            if ( empty( $this->_request_data['url'] ) ) {
+            /*if ( empty( $this->_request_data['url'] ) ) {
                 // Attempt to grab the URL from the user agent if no URL is specified
                 $domain = array_map( 'trim', explode( ';', $_SERVER['HTTP_USER_AGENT'] ) );
                 if ( 1 < count( $domain ) ) {
@@ -688,7 +803,7 @@
                 }
 
                 $this->_request_data['url'] = $url;
-            }
+            }*/
         }
 
         /**
@@ -774,6 +889,63 @@
             $this->shoot_json_result( true, $data, $message );
         }
 
+        /**
+         * @author Vova Feldman (@svovaf)
+         * @since  1.2.1
+         * @since  1.2.2.5 The AJAX action names are based on the module ID, not like the non-AJAX actions that are
+         *         based on the slug for backward compatibility.
+         *
+         * @param string $tag
+         *
+         * @return string
+         */
+        function get_ajax_action( $tag ) {
+            return self::get_ajax_action_static( $tag );
+        }
+
+        /**
+         * @author Vova Feldman (@svovaf)
+         * @since  1.2.1.7
+         *
+         * @param string $tag
+         *
+         * @return string
+         */
+        function get_ajax_security( $tag ) {
+            return wp_create_nonce( $this->get_ajax_action( $tag ) );
+        }
+
+        /**
+         * @author Vova Feldman (@svovaf)
+         * @since  1.2.1.7
+         *
+         * @param string $tag
+         */
+        function check_ajax_referer( $tag ) {
+            check_ajax_referer( $this->get_ajax_action( $tag ), 'security' );
+        }
+
+        /**
+         * @author Vova Feldman (@svovaf)
+         * @since  1.2.1.6
+         * @since  1.2.2.5 The AJAX action names are based on the module ID, not like the non-AJAX actions that are
+         *         based on the slug for backward compatibility.
+         *
+         * @param string      $tag
+         * @param number|null $module_id
+         *
+         * @return string
+         */
+        private static function get_ajax_action_static( $tag, $module_id = null ) {
+            $action = "fs_{$tag}";
+
+            if ( ! empty( $module_id ) ) {
+                $action .= "_{$module_id}";
+            }
+
+            return $action;
+        }
+
         #endregion
 
         #--------------------------------------------------------------------------------
@@ -824,14 +996,161 @@
         }
 
         /**
+         * Store mapping between local and remote:
+         *  - Module
+         *  - Plan
+         *  - Pricing
+         *
+         * @author Vova Feldman (@svovaf)
+         * @since  1.1.0
+         */
+        public function _store_mapping_callback() {
+            $this->check_ajax_referer( 'store_mapping' );
+
+            if ( ! isset( $_POST['map'] ) || ! is_array( $_POST['map'] ) ) {
+                $this->shoot_json_failure( 'Invalid mapping data.' );
+            }
+
+            $map = $_POST['map'];
+
+            // Check if download exist.
+            $local_module_id = $map['module']['local'];
+
+            // Try to load local module.
+            $local_module = $this->get_local_module_by_id( $local_module_id );
+
+            if ( false === $local_module ) {
+                // Local module not exist.
+                $this->shoot_json_failure( "There's no local module with the specified ID ({$local_module_id})." );
+            }
+
+            // Link module.
+            $module     = new FS_Plugin();
+            $module->id = $map['module']['remote'];
+            $this->link_entity( $module, $local_module_id );
+
+            $plan     = new FS_Plan();
+            $plan->id = $map['plan']['remote'];
+            $pricing  = new FS_Pricing();
+            foreach ( $map['pricing'] as $p ) {
+                $pricing->id = $p['remote'];
+
+                // Link pricing to plan.
+                $this->link_entity( $plan, $p['local'] );
+
+                // Link pricing.
+                $this->link_entity( $pricing, $p['local'] );
+            }
+
+            // Success.
+            $module_id = $this->get_remote_module_id( $local_module_id );
+            $plan_id   = $this->get_remote_paid_plan_id( $local_module_id );
+
+            $this->shoot_json_success( array(
+                'module_id' => $module_id,
+                'plan_id'   => $plan_id,
+            ) );
+        }
+
+        /**
          * Clear all mapping.
          *
          * @author Vova Feldman
          * @since  1.0.2
          */
         public function _clear_mapping_callback() {
+            $this->check_ajax_referer( 'clear_mapping' );
+
             $this->_entity_mapper->clear_mapping();
             $this->shoot_json_success();
+        }
+
+        /**
+         * @author Vova Feldman
+         * @since  1.1.0
+         */
+        public function _fetch_modules() {
+            $result = $this->get_api()->get( '/plugins.json?all=true&sort=slug', true );
+
+            $this->shoot_json_success( $result->plugins );
+        }
+
+        /**
+         * @author Vova Feldman
+         * @since  1.1.0
+         */
+        public function _fetch_module_plans() {
+            $module_id = $this->require_request_id( 'module_id' );
+
+            if ( ! is_numeric( $module_id ) || intval( $module_id ) != $module_id || $module_id < 0 ) {
+                $this->shoot_json_failure( 'module_id parameter is invalid.' );
+            }
+
+            $result = $this->get_api()->get( "/plugins/{$module_id}/plans.json", true );
+
+            $this->shoot_json_success( $result->plans );
+        }
+
+        /**
+         * Helper method for AJAX ID arguments validation.
+         *
+         * @author Vova Feldman
+         * @since  1.1.0
+         *
+         * @param string $key
+         *
+         * @return number
+         */
+        private function require_request_id( $key ) {
+            $val = fs_request_get( $key );
+
+            if ( ! is_numeric( $val ) || $val < 0 ) {
+                $this->shoot_json_failure( $key . ' parameter is invalid (must be unsigned int).' );
+            }
+
+            return $val;
+        }
+
+        /**
+         * @author Vova Feldman
+         * @since  1.1.0
+         */
+        public function _fetch_pricing() {
+            $ids_params = array( 'module_id', 'plan_id', 'local_module_id' );
+            $params     = array();
+
+            foreach ( $ids_params as $key ) {
+                $params[ $key ] = $this->require_request_id( $key );
+            }
+
+            $result = $this->get_api()->get( "/plugins/{$params['module_id']}/plans/{$params['plan_id']}/pricing.json" );
+
+            $local_prices = array();
+            if ( edd_has_variable_prices( $params['local_module_id'] ) ) {
+                $edd_prices = edd_get_variable_prices( $params['local_module_id'] );
+
+                foreach ( $edd_prices as $id => $edd_price ) {
+                    $local_prices[] = array(
+                        'id'       => $params['local_module_id'] . ':' . $id,
+                        'name'     => $edd_price['name'],
+                        'price'    => $edd_price['amount'],
+                        'licenses' => $edd_price['license_limit'],
+                        'period'   => $edd_price['period'],
+                    );
+                }
+            } else {
+                $local_prices[] = array(
+                    'id'       => $params['local_module_id'] . ':0',
+                    'name'     => 'Single Site',
+                    'price'    => edd_get_download_price( $params['local_module_id'] ),
+                    'licenses' => get_post_meta( $params['local_module_id'], '_edd_sl_limit', true ),
+                    'period'   => 'year',
+                );
+            }
+            $this->shoot_json_success( array(
+                'remote' => $result->pricing,
+                'local'  => $local_prices,
+            ) );
         }
 
         /**
@@ -961,9 +1280,19 @@
         /**
          * Should migrate install's license and return FS account's data (user + install).
          *
-         * Result looks like:
+         * When a single site migration, result looks like:
          *  array(
          *      'install' => FS_Install,
+         *      'user' => FS_User,
+         *  )
+         *
+         * When a multisite migration, result looks like:
+         *  array(
+         *      'installs' => array(
+         *          's_1' => FS_Install,
+         *          ...
+         *          's_N' => FS_Install,
+         *      ),
          *      'user' => FS_User,
          *  )
          *
@@ -974,5 +1303,5 @@
          *
          * @throws FS_Endpoint_Exception
          */
-        abstract protected function migrate_install_license();
+        abstract protected function migrate_license_and_installs();
     }

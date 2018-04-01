@@ -63,10 +63,24 @@
         width: 1px;
     }
 
-    button {
-        width: 100%;
-        display: block;
-        text-align: center;
-        position: relative;
+    tr.fs-module
+    {
+        button
+        {
+            width:      100%;
+            display:    block;
+            text-align: center;
+            position:   relative;
+        }
     }
+
+    #fs_manual_mapping {
+        select {
+            width: 49%;
+        }
+    }
+}
+
+[v-cloak] {
+    display: none;
 }

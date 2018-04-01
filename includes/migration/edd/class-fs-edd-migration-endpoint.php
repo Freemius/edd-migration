@@ -31,11 +31,10 @@
         }
 
         private function __construct() {
-
             $this->init( WP_FS__NAMESPACE_EDD );
 
             if ( false && ! defined( 'DOING_AJAX' ) ) {
-                $this->test_full_migration();
+                $this->test_multisite_network_bundle_migration();
             }
         }
 
@@ -56,7 +55,6 @@
          * @throws Exception
          */
         function migrate_license_by_id( $license_id ) {
-            require_once WP_FSM__DIR_MIGRATION . '/class-fs-migration-abstract.php';
             require_once WP_FSM__DIR_MIGRATION . '/edd/class-fs-edd-migration.php';
 
             $migration = FS_EDD_Migration::instance( $license_id );
@@ -78,7 +76,7 @@
             $params = array(
                 'license_key'      => $license_key,
                 'module_id'        => $download_id,
-                'url'              => $url,
+//                'url'              => $url,
                 'site_url'         => $url,
                 'plugin_version'   => '1.2.1',
                 'site_uid'         => $this->get_anonymous_id( $url ),
@@ -90,6 +88,104 @@
                 'is_premium'       => true,
                 'is_active'        => true,
                 'is_uninstalled'   => false,
+            );
+
+            $this->maybe_process_api_request( $params );
+        }
+
+        /**
+         * Test full install's license migration.
+         *
+         * @author   Vova Feldman (@svovaf)
+         * @since    1.0.0
+         */
+        private function test_bundle_migration() {
+            $url                   = 'http://fswp';
+            $download_id           = 2116;
+            $children_license_keys = array(
+                'd0fa47797dc03c896bf66058c599d9cd',
+                '356c232c5988fdd03f4f3eff403012f9',
+            );
+
+            $params = array(
+                'user_firstname'               => 'vova',
+                'user_lastname'                => '',
+                'user_nickname'                => 'vova',
+                'user_email'                   => 'fgt1@freemius.com',
+                'user_ip'                      => '::1',
+                'plugin_slug'                  => 'wp-security-audit-log',
+                'plugin_id'                    => '94',
+                'plugin_public_key'            => 'pk_d602740d3088272d75906045af9fa',
+                'plugin_version'               => '2.6.9.1',
+                'site_uid'                     => 'b7fdc0a5fd94548a2c00f914f8254313',
+                'site_url'                     => $url,
+                'site_name'                    => 'WP Freemius Testing',
+                'platform_version'             => '4.8.2',
+                'sdk_version'                  => '1.2.3',
+                'programming_language_version' => '5.5.38',
+                'language'                     => 'en-US',
+                'charset'                      => 'UTF-8',
+                'is_premium'                   => true,
+                'is_active'                    => true,
+                'is_uninstalled'               => false,
+                'ts'                           => 1513776711,
+                'salt'                         => '1f20b47846f3cd7311cdabdd99406959',
+                'secure'                       => '97c424911d2c0bc89a794a9f4a0d4c1b',
+                'module_id'                    => $download_id,
+//                'url'                          => $url,
+                'children_license_keys'        => $children_license_keys,
+            );
+
+            $this->maybe_process_api_request( $params );
+        }
+
+        /**
+         * Test full install's license migration.
+         *
+         * @author   Vova Feldman (@svovaf)
+         * @since    1.0.0
+         */
+        private function test_multisite_network_bundle_migration() {
+            $download_id           = 2116;
+            $children_license_keys = array(
+                'd0fa47797dc03c896bf66058c599d9cd',
+                '356c232c5988fdd03f4f3eff403012f9',
+            );
+
+            $sites = array();
+            $languages = array( 'en-US', 'fr-FR', 'ru-RU' );
+            for ( $i = 0; $i < 5; $i ++ ) {
+                $sites[] = array(
+                    'uid'      => "b7fdc0a5fd94548a2c00f914f825431{$i}",
+                    'url'      => "http://test{$i}.com",
+                    'name'     => "MS Network Migration {$i}",
+                    'charset'  => 'UTF-8',
+                    'language' => $languages[array_rand( $languages )],
+                );
+            }
+
+            $params = array(
+                'user_firstname'               => 'vova',
+                'user_lastname'                => '',
+                'user_nickname'                => 'vova',
+                'user_email'                   => 'vova@freemius.com',
+                'user_ip'                      => '::1',
+                'plugin_slug'                  => 'wp-security-audit-log',
+                'plugin_id'                    => '94',
+                'plugin_public_key'            => 'pk_d602740d3088272d75906045af9fa',
+                'plugin_version'               => '2.6.9.1',
+                'platform_version'             => '4.8.2',
+                'sdk_version'                  => '2.0.1',
+                'programming_language_version' => '5.5.38',
+                'is_premium'                   => true,
+                'is_active'                    => true,
+                'is_uninstalled'               => false,
+                'ts'                           => 1513776711,
+                'salt'                         => '1f20b47846f3cd7311cdabdd99406959',
+                'secure'                       => '97c424911d2c0bc89a794a9f4a0d4c1b',
+                'module_id'                    => $download_id,
+                'children_license_keys'        => $children_license_keys,
+                'sites'                        => $sites,
             );
 
             $this->maybe_process_api_request( $params );
@@ -224,8 +320,7 @@
          *
          * @throws FS_Endpoint_Exception
          */
-        protected function migrate_install_license() {
-            require_once WP_FSM__DIR_MIGRATION . '/class-fs-migration-abstract.php';
+        protected function migrate_license_and_installs() {
             require_once WP_FSM__DIR_MIGRATION . '/edd/class-fs-edd-migration.php';
 
             $license_id = edd_software_licensing()->get_license_by_key( $this->get_param( 'license_key' ) );
@@ -236,13 +331,187 @@
             // Migrate customer, purchase/subscription, billing and license.
             $customer = $migration->do_migrate_license();
 
-            // Migrate plugin installation.
-            return $migration->do_migrate_install( $this->_request_data, $customer );
+            if ( ! $this->is_multisite_migration() ) {
+                // Migrate plugin installation.
+                return $migration->do_migrate_install( $this->_request_data, $customer );
+            }
+
+            // Get sites.
+            $sites = $this->get_param('sites');
+
+            unset($this->_request_data['sites']);
+
+            foreach ( $sites as &$site ) {
+                $site['site_uid']  = $site['uid'];
+                $site['site_url']  = $site['url'];
+                $site['site_name'] = $site['title'];
+
+                unset( $site['uid'] );
+                unset( $site['url'] );
+                unset( $site['title'] );
+
+                $site = array_merge( $site, $this->_request_data );
+            }
+
+            return $migration->do_migrate_installs( $sites, $customer );
         }
 
         #--------------------------------------------------------------------------------
         #region API Request Params Validation
         #--------------------------------------------------------------------------------
+
+        /**
+         * Validate EDD download license parameters per site.
+         *
+         * @author Vova Feldman
+         * @since  1.1.0
+         *
+         * @param int      $download_id
+         * @param string   $url
+         * @param string   $license_key
+         * @param string[] $children_license_keys
+         *
+         * @throws \FS_Endpoint_Exception
+         */
+        protected function validate_site_params(
+            $download_id,
+            $url,
+            &$license_key,
+            $children_license_keys
+        ) {
+            $url = FS_EDD_Migration::strip_path_from_url( $url );
+
+            if ( ! empty( $license_key ) ) {
+                // Get EDD license state.
+                $edd_license_state = edd_software_licensing()->check_license( array(
+                    'item_id'   => $download_id,
+                    'item_name' => '',
+                    'key'       => $license_key,
+                    'url'       => $url,
+                ) );
+            } else {
+                if ( ! is_array( $children_license_keys ) || empty( $children_license_keys ) ) {
+                    throw new FS_Endpoint_Exception( "Missing license key.", 'empty_license_key', 400 );
+                }
+
+                $edd_license_state = '';
+
+                foreach ( $children_license_keys as $child_license_key ) {
+                    /**
+                     * @var EDD_SL_License $license_information
+                     */
+                    $child_license = edd_software_licensing()->get_license( $child_license_key, true );
+
+                    if ( ! is_object( $child_license ) || ! is_object( $child_license->download ) ) {
+                        throw new FS_Endpoint_Exception( "Invalid license key ({$child_license_key}).", 'invalid_license_key', 400 );
+                    }
+
+                    if ( empty( $child_license->parent ) ) {
+                        // License doesn't have a parent license, so just skip it.
+                        $edd_license_state = 'no_parent';
+                        continue;
+                    }
+
+                    /**
+                     * Load bundle's license.
+                     *
+                     * @var EDD_SL_License $parent_license
+                     */
+                    $parent_license = edd_software_licensing()->get_license( $child_license->parent );
+
+                    if ( ! is_object( $parent_license ) || ! is_object( $parent_license->download ) ) {
+                        // Current's license's parent is corrupted.
+                        continue;
+                    }
+
+                    if ( ! $parent_license->download->is_bundled_download() ) {
+                        // Parent license is not associated with a bundle, so skip.
+                        continue;
+                    }
+
+                    if ( $download_id == $parent_license->download->ID ) {
+                        // Found a match.
+                        $edd_license_state = edd_software_licensing()->check_license( array(
+                            'item_id'   => $child_license->download->ID,
+                            'item_name' => '',
+                            'key'       => $child_license_key,
+                            'url'       => $url,
+                        ) );
+
+                        // If license is valid then override the parent license key.
+                        if ( in_array( $edd_license_state, array(
+                            'valid',
+                            'inactive',
+                            'site_inactive',
+                        ) ) ) {
+                            $license_key = $parent_license->key;
+                            break;
+                        }
+                    }
+                }
+
+                if ('no_parent' === $edd_license_state){
+                    throw new FS_Endpoint_Exception( "Add-on license key(s) are not associated with a bundle's license key.", 'invalid_license_key', 400 );
+                }
+            }
+
+            if ( empty( $license_key ) ) {
+                throw new FS_Endpoint_Exception( "Invalid license key ({$license_key}).", 'invalid_license_key', 400 );
+            }
+
+            switch ( $edd_license_state ) {
+                case 'invalid':
+                    // Invalid license key.
+                    throw new FS_Endpoint_Exception( "Invalid license key ({$license_key}).", 'invalid_license_key', 400 );
+                case 'invalid_item_id':
+                    // Invalid download ID.
+                    throw new FS_Endpoint_Exception( "Invalid download ID ({$download_id}).", 'invalid_download_id', 400 );
+                case 'expired':
+                case 'disabled':
+                    /**
+                     * License expired/disabled, hence, the new version of the product with the
+                     * migration script shouldn't be accessible to the customer.
+                     */
+                    throw new FS_Endpoint_Exception( "License {$edd_license_state}.", "license_{$edd_license_state}", 400 );
+                case 'inactive':
+                    /**
+                     * License not yet activated.
+                     *
+                     * This use-case should not happen since if the client triggered a migration
+                     * request with a valid license key, it means that the license was activated
+                     * at least once. Hence, 'inactive' isn't possible.
+                     */
+                case 'site_inactive':
+                    /**
+                     * Migrate license & site.
+                     *
+                     * Based on the EDD SL logic this result is trigger when it's a production
+                     * site (not localhost), and the site license wasn't activated.
+                     *
+                     * It can happen for example when the user trying to activate a license
+                     * that is already fully utilized.
+                     *
+                     * @todo what to do in that case?
+                     */
+                case 'valid':
+                    /**
+                     * Migrate license & site.
+                     *
+                     * License is valid and activated for the context site.
+                     */
+                    break;
+                case 'item_name_mismatch':
+                    /**
+                     * This use case should never happen since we check the license state
+                     * based on the EDD download ID, not the name.
+                     */
+                    break;
+                default:
+                    // Unexpected license state. This case should never happen.
+                    throw new FS_Endpoint_Exception( 'Unexpected EDD download license state.' );
+                    break;
+            }
+        }
 
         /**
          * Validate EDD download license parameters.
@@ -258,77 +527,51 @@
 
             $download_id = $this->get_param( 'module_id' );
             $license_key = $this->get_param( 'license_key' );
-            $url         = $this->get_param( 'url' );
+            $children_license_keys = $this->get_param( 'children_license_keys' );
 
             // Before checking license with EDD, make sure module is synced.
             if ( false === $this->get_remote_module_id( $download_id ) ) {
                 throw new FS_Endpoint_Exception( "Invalid download ID ({$download_id}).", 'invalid_download_id', 400 );
             }
 
-            // Get EDD license state.
-            $edd_license_state = edd_software_licensing()->check_license( array(
-                'item_id'   => $download_id,
-                'item_name' => '',
-                'key'       => $license_key,
-                'url'       => $url,
-            ) );
+            require_once WP_FSM__DIR_MIGRATION . '/edd/class-fs-edd-migration.php';
 
-            switch ( $edd_license_state ) {
-                case 'invalid':
-                    // Invalid license key.
-                    throw new FS_Endpoint_Exception( "Invalid license key ({$license_key}).", 'invalid_license_key',
-                        400 );
-                case 'invalid_item_id':
-                    // Invalid download ID.
-                    throw new FS_Endpoint_Exception( "Invalid download ID ({$download_id}).", 'invalid_download_id',
-                        400 );
-                /**
-                 * Migrate expired license since all EDD licenses are not blocking.
-                 */
-                case 'expired':
+            if ( ! $this->is_multisite_migration() ) {
+                $this->validate_site_params(
+                    $download_id,
+                    $this->get_param( 'site_url' ),
+                    $license_key,
+                    $children_license_keys
+                );
+
+                $this->set_param( 'license_key', $license_key );
+            } else {
+                $sites = $this->get_param( 'sites', array() );
+
+                // Multi-site network migration.
+                if ( ! is_array( $sites ) ) {
+                    throw new FS_Endpoint_Exception( "sites cannot be empty when migrating a multi-site network license.", "sites_empty" );
+                }
+
+                foreach ( $sites as $id => $site ) {
+                    $site_license_key = !empty($site['license_key']) ? $site['license_key'] : '';
+                    $site_children_license_keys = !empty($site['children_license_keys']) ? $site['children_license_keys'] : '';
+
+                    $site_license_key = empty($site_license_key) ? $license_key : $site_license_key;
+                    $site_children_license_keys = empty($site_children_license_keys) ? $children_license_keys : $site_children_license_keys;
+
+                    $this->validate_site_params(
+                        $download_id,
+                        $site['url'],
+                        $site_license_key,
+                        $site_children_license_keys
+                    );
+
                     /**
-                     * License not yet activated.
-                     *
-                     * This use-case should not happen since if the client triggered a migration
-                     * request with a valid license key, it means that the license was activated
-                     * at least once. Hence, 'inactive' isn't possible.
+                     * @todo This logic currently only supports setting up a common license for all migrating sites. While the parsing above will correctly validate per sub-site licenses (if those are set), the actual migration logic currently only supports single license per migration. The best solution would be splitting the migration and calling the actual migration logic several times, once per license.
                      */
-                case 'inactive':
-                    /**
-                     * License was disabled, therefore, ...
-                     *
-                     * @todo what to do in that case?
-                     */
-                case 'disabled':
-                    /**
-                     * Migrate license & site.
-                     *
-                     * Based on the EDD SL logic this result is trigger when it's a production
-                     * site (not localhost), and the site license wasn't activated.
-                     *
-                     * It can happen for example when the user trying to activate a license
-                     * that is already fully utilized.
-                     *
-                     * @todo what to do in that case?
-                     */
-                case 'site_inactive':
-                    /**
-                     * Migrate license & site.
-                     *
-                     * License is valid and activated for the context site.
-                     */
-                case 'valid':
-                    break;
-                case 'item_name_mismatch':
-                    /**
-                     * This use case should never happen since we check the license state
-                     * based on the EDD download ID, not the name.
-                     */
-                    break;
-                default:
-                    // Unexpected license state. This case should never happen.
-                    throw new FS_Endpoint_Exception( 'Unexpected EDD download license state.' );
-                    break;
+                    $this->set_param( 'license_key', $site_license_key );
+                }
             }
         }
 
