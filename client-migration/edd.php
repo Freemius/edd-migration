@@ -31,7 +31,7 @@
 		 */
 		function get() {
 			// You should adjust this to load the license key of your EDD download.
-			return trim( get_option( 'edd_sample_license_key' ) );
+			return trim( get_option( 'edd_sample_license_key', '' ) );
 		}
 
 		/**

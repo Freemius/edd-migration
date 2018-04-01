@@ -10,7 +10,11 @@
 		exit;
 	}
 
-	if ( ! defined( 'WP_FSM__SLUG' ) ) {
+    if ( ! defined( 'WP_FSM__VERSION' )) {
+        define( 'WP_FSM__VERSION', '1.1.0' );
+    }
+
+    if ( ! defined( 'WP_FSM__SLUG' ) ) {
 		define( 'WP_FSM__SLUG', 'fs-migration' );
 	}
 
@@ -147,6 +151,10 @@
 	#--------------------------------------------------------------------------------
 	#region Debugging
 	#--------------------------------------------------------------------------------
+
+    if ( ! defined( 'WP_FS__DEV_MODE' )) {
+        define( 'WP_FS__DEV_MODE', false );
+    }
 
 	if ( ! defined( 'WP_FS__DEBUG_SDK' ) ) {
 		$debug_mode = get_option( 'fs_debug_mode', null );
