@@ -25,142 +25,144 @@
     wp_enqueue_script( 'vue-resource', 'https://cdn.jsdelivr.net/npm/vue-resource@1.3.4' );
     wp_enqueue_script( 'vue-async-computed', 'https://unpkg.com/vue-async-computed@3.3.1' );
 ?>
-<div id="fs_settings" class="wrap">
+<div class="wrap">
     <h2><?php printf( __fs( 'freemius-x-settings' ), WP_FS__NAMESPACE_EDD ) ?></h2>
 
     <?php if ( $is_connected ) : ?>
-        <table class="form-table">
-            <tbody>
-            <tr>
-                <th><h3><?php _efs( 'all-products' ) ?></h3></th>
-                <td>
-                    <hr>
-                </td>
-            </tr>
-            </tbody>
-        </table>
-        <table id="fs_modules" class="widefat">
-            <thead>
-            <tr>
-                <th style="width: 1px"></th>
-                <th><?php _efs( 'Name' ) ?></th>
-                <th><?php _efs( 'Slug' ) ?></th>
-                <th><?php _efs( 'Local ID' ) ?></th>
-                <th><?php _efs( 'FS ID' ) ?></th>
-                <th><?php _efs( 'FS Plan ID' ) ?></th>
-                <th></th>
-            </tr>
-            </thead>
-            <tbody>
-            <?php
-                $local_modules            = $endpoint->get_all_local_modules_for_settings();
-                $synced_local_modules     = array();
-                $not_synced_local_modules = array();
-
-                foreach ( $local_modules as $local_module ) {
-                    $module_id = $endpoint->get_remote_module_id( $local_module->id );
-
-                    if ( false !== $module_id ) {
-                        $synced_local_modules[] = $local_module;
-                    } else {
-                        $not_synced_local_modules[] = $local_module;
-                    }
-                }
-
-                $local_modules = array_merge( $synced_local_modules, $not_synced_local_modules );
-            ?>
-
-            <?php foreach ( $local_modules as $local_module ) : ?>
-                <?php $module_id = $endpoint->get_remote_module_id( $local_module->id ) ?>
-                <?php $is_synced = is_numeric( $module_id ) ?>
-                <tr class="fs-module<?php echo $is_synced ? ' fs--synced' : '' ?>" data-local-module-id="<?php echo $local_module->id ?>">
-                    <td><i class="dashicons dashicons-yes"></i></td>
-                    <td><?php echo $local_module->title ?></td>
-                    <td><?php echo $local_module->slug ?></td>
-                    <td><?php echo $local_module->id ?></td>
-                    <?php if ( $is_synced ) : ?>
-                        <td class="fs--module-id"><?php echo $module_id ?></td>
-                        <td class="fs--paid-plan-id"><?php
-                                $remote_plan_id = $endpoint->get_remote_paid_plan_id( $local_module->id );
-                                echo ( false !== $remote_plan_id ) ? $remote_plan_id : '';
-                            ?></td>
-                    <?php else : ?>
-                        <td class="fs--module-id"></td>
-                        <td class="fs--paid-plan-id"></td>
-                    <?php endif ?>
-                    <td style="text-align: right">
-                        <button class="button fs-auto-sync" v-on:click="autoSyncProduct(<?php echo $local_module->id ?>, $event)"><?php $is_synced ? fs_esc_html_echo_inline( 'Resync' ) : fs_esc_html_echo_inline( 'Auto Sync to Freemius' ) ?></button>
-                        <button class="button button-primary" v-on:click="selectModule(<?php echo $local_module->id ?>, $event)"><?php fs_esc_html_echo_inline( 'Manual Mapping' ) ?></button>
+        <div id="fs_settings">
+            <table class="form-table">
+                <tbody>
+                <tr>
+                    <th><h3><?php _efs( 'all-products' ) ?></h3></th>
+                    <td>
+                        <hr>
                     </td>
                 </tr>
-            <?php endforeach ?>
-            <tr id="fs_manual_mapping" v-show="localModuleID" v-cloak>
-                <td></td>
-                <td colspan="5">
-                    <div>
-                        <!-- Product Selection -->
-                        <select v-model="module" :disabled="loading.modules">
-                            <option disabled selected value="">{{ loading.modules ?
-                                '<?php fs_esc_html_echo_inline( 'Loading products' ) ?>' :
-                                '<?php fs_esc_html_echo_inline( 'Select product' ) ?>' }}...
-                            </option>
-                            <option v-for="m in modules" v-bind:value="m">{{ m.title }} ({{ m.id }} - {{ m.slug }})
-                            </option>
-                        </select>
-                        <!--/ Product Selection -->
+                </tbody>
+            </table>
+            <table id="fs_modules" class="widefat">
+                <thead>
+                <tr>
+                    <th style="width: 1px"></th>
+                    <th><?php _efs( 'Name' ) ?></th>
+                    <th><?php _efs( 'Slug' ) ?></th>
+                    <th><?php _efs( 'Local ID' ) ?></th>
+                    <th><?php _efs( 'FS ID' ) ?></th>
+                    <th><?php _efs( 'FS Plan ID' ) ?></th>
+                    <th></th>
+                </tr>
+                </thead>
+                <tbody>
+                <?php
+                    $local_modules            = $endpoint->get_all_local_modules_for_settings();
+                    $synced_local_modules     = array();
+                    $not_synced_local_modules = array();
 
-                        <!-- Plan Selection -->
-                        <select v-model="plan" v-show="module" :disabled="loading.plans">
-                            <option disabled selected value="">{{ loading.plans ?
-                                '<?php fs_esc_html_echo_inline( 'Loading plans' ) ?>' :
-                                '<?php fs_esc_html_echo_inline( 'Select plan' ) ?>' }}...
-                            </option>
-                            <option v-for="p in plans" v-bind:value="p">{{ p.title }} ({{ p.id }} - {{ p.name }})
-                            </option>
-                        </select>
-                        <!--/ Plan Selection -->
-                    </div>
+                    foreach ( $local_modules as $local_module ) {
+                        $module_id = $endpoint->get_remote_module_id( $local_module->id );
 
-                    <!-- Pricing Mapping -->
-                    <div v-show="plan">
-                        <table style="width: 100%">
-                            <tbody>
-                            <tr v-for="p in pricing.local">
-                                <td style="text-align: right"><label style="white-space:nowrap;">{{ p.name }} - ${{ p.price }} ({{ p.licenses }}
-                                        licenses):</label></td>
-                                <td style="text-align: left">
-                                    <select v-model="p.remote" style="width: 100%">
-                                        <option disabled selected value="">{{ loading.pricing ?
-                                            '<?php fs_esc_html_echo_inline( 'Loading pricing' ) ?>' :
-                                            '<?php fs_esc_html_echo_inline( 'Select pricing' ) ?>' }}...
-                                        </option>
-                                        <option v-for="rp in pricing.remote" v-bind:value="rp">{{
-                                            rp.licenses == null ? 'Unlimited' : rp.licenses }}
-                                            licenses for ${{ rp.annual_price }} / year (ID = {{ rp.id }})
-                                        </option>
-                                    </select>
-                                </td>
-                            </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                    <!--/ Pricing Mapping -->
+                        if ( false !== $module_id ) {
+                            $synced_local_modules[] = $local_module;
+                        } else {
+                            $not_synced_local_modules[] = $local_module;
+                        }
+                    }
 
-                    <div>
-                        <button class="button"
-                                v-on:click="unselectModule"><?php fs_esc_html_echo_inline( 'Cancel' ) ?></button>
-                        <button class="button button-primary"
-                                v-on:click="saveMapping"><?php fs_esc_html_echo_inline( 'Save Mapping' ) ?></button>
-                    </div>
-                </td>
-                <td></td>
-            </tr>
-            </tbody>
-        </table>
+                    $local_modules = array_merge( $synced_local_modules, $not_synced_local_modules );
+                ?>
 
-        <br>
+                <?php foreach ( $local_modules as $local_module ) : ?>
+                    <?php $module_id = $endpoint->get_remote_module_id( $local_module->id ) ?>
+                    <?php $is_synced = is_numeric( $module_id ) ?>
+                    <tr class="fs-module<?php echo $is_synced ? ' fs--synced' : '' ?>" data-local-module-id="<?php echo $local_module->id ?>">
+                        <td><i class="dashicons dashicons-yes"></i></td>
+                        <td><?php echo $local_module->title ?></td>
+                        <td><?php echo $local_module->slug ?></td>
+                        <td><?php echo $local_module->id ?></td>
+                        <?php if ( $is_synced ) : ?>
+                            <td class="fs--module-id"><?php echo $module_id ?></td>
+                            <td class="fs--paid-plan-id"><?php
+                                    $remote_plan_id = $endpoint->get_remote_paid_plan_id( $local_module->id );
+                                    echo ( false !== $remote_plan_id ) ? $remote_plan_id : '';
+                                ?></td>
+                        <?php else : ?>
+                            <td class="fs--module-id"></td>
+                            <td class="fs--paid-plan-id"></td>
+                        <?php endif ?>
+                        <td style="text-align: right">
+                            <button class="button fs-auto-sync" v-on:click="autoSyncProduct(<?php echo $local_module->id ?>, $event)"><?php $is_synced ? fs_esc_html_echo_inline( 'Resync' ) : fs_esc_html_echo_inline( 'Auto Sync to Freemius' ) ?></button>
+                            <button class="button button-primary" v-on:click="selectModule(<?php echo $local_module->id ?>, $event)"><?php fs_esc_html_echo_inline( 'Manual Mapping' ) ?></button>
+                        </td>
+                    </tr>
+                <?php endforeach ?>
+                <tr id="fs_manual_mapping" v-show="localModuleID" v-cloak>
+                    <td></td>
+                    <td colspan="5">
+                        <div>
+                            <!-- Product Selection -->
+                            <select v-model="module" :disabled="loading.modules">
+                                <option disabled selected value="">{{ loading.modules ?
+                                    '<?php fs_esc_html_echo_inline( 'Loading products' ) ?>' :
+                                    '<?php fs_esc_html_echo_inline( 'Select product' ) ?>' }}...
+                                </option>
+                                <option v-for="m in modules" v-bind:value="m">{{ m.title }} ({{ m.id }} - {{ m.slug }})
+                                </option>
+                            </select>
+                            <!--/ Product Selection -->
 
-        <button v-on:click="clearAllMapping($event)" class="button"><?php _efs( 'Clear Mapping Data' ) ?></button>
+                            <!-- Plan Selection -->
+                            <select v-model="plan" v-show="module" :disabled="loading.plans">
+                                <option disabled selected value="">{{ loading.plans ?
+                                    '<?php fs_esc_html_echo_inline( 'Loading plans' ) ?>' :
+                                    '<?php fs_esc_html_echo_inline( 'Select plan' ) ?>' }}...
+                                </option>
+                                <option v-for="p in plans" v-bind:value="p">{{ p.title }} ({{ p.id }} - {{ p.name }})
+                                </option>
+                            </select>
+                            <!--/ Plan Selection -->
+                        </div>
+
+                        <!-- Pricing Mapping -->
+                        <div v-show="plan">
+                            <table style="width: 100%">
+                                <tbody>
+                                <tr v-for="p in pricing.local">
+                                    <td style="text-align: right"><label style="white-space:nowrap;">{{ p.name }} - ${{ p.price }} ({{ p.licenses }}
+                                            licenses):</label></td>
+                                    <td style="text-align: left">
+                                        <select v-model="p.remote" style="width: 100%">
+                                            <option disabled selected value="">{{ loading.pricing ?
+                                                '<?php fs_esc_html_echo_inline( 'Loading pricing' ) ?>' :
+                                                '<?php fs_esc_html_echo_inline( 'Select pricing' ) ?>' }}...
+                                            </option>
+                                            <option v-for="rp in pricing.remote" v-bind:value="rp">{{
+                                                rp.licenses == null ? 'Unlimited' : rp.licenses }}
+                                                licenses for ${{ rp.annual_price }} / year (ID = {{ rp.id }})
+                                            </option>
+                                        </select>
+                                    </td>
+                                </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <!--/ Pricing Mapping -->
+
+                        <div>
+                            <button class="button"
+                                    v-on:click="unselectModule"><?php fs_esc_html_echo_inline( 'Cancel' ) ?></button>
+                            <button class="button button-primary"
+                                    v-on:click="saveMapping"><?php fs_esc_html_echo_inline( 'Save Mapping' ) ?></button>
+                        </div>
+                    </td>
+                    <td></td>
+                </tr>
+                </tbody>
+            </table>
+
+            <br>
+
+            <button v-on:click="clearAllMapping($event)" class="button"><?php _efs( 'Clear Mapping Data' ) ?></button>
+        </div>
     <?php endif ?>
     <?php if ( ! $is_connected ) : ?>
         <p><?php printf(
@@ -482,6 +484,5 @@
                 }
             })
         });
-    })
-    (jQuery);
+    })(jQuery);
 </script>
