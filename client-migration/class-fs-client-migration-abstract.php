@@ -411,7 +411,7 @@
         private function get_site_migration_data_and_licenses() {
             $is_network_migration = $this->_license_accessor->is_network_migration() ? true : null;
 
-            $all_licenses = array();
+            $this->wp_cookie_constants();
 
             $migration_data = $this->_fs->get_opt_in_params( array(
                 // Include the migrating product ID.
@@ -426,6 +426,8 @@
             // Clean unnecessary arguments.
             unset( $migration_data['return_url'] );
             unset( $migration_data['account_url'] );
+
+            $all_licenses = array();
 
             if ( ! $is_network_migration || $this->_license_accessor->are_licenses_network_identical() ) {
                 if ( $this->_is_bundle ) {
@@ -480,6 +482,49 @@
                 'data'     => $migration_data,
                 'licenses' => $all_licenses,
             );
+        }
+
+        /**
+         * Define cookie constants which are required by Freemius::get_opt_in_params() since
+         * it uses wp_get_current_user() which needs the cookie constants set. When a plugin
+         * is network activated the cookie constants are only configured after the network
+         * plugins activation, therefore, if we don't define those constants WP will throw
+         * PHP warnings/notices.
+         *
+         * @author   Vova Feldman (@svovaf)
+         * @since    1.1.1
+         */
+        private function wp_cookie_constants() {
+            if ( defined( 'LOGGED_IN_COOKIE' ) &&
+                 defined( 'AUTH_COOKIE' )
+            ) {
+                return;
+            }
+
+            /**
+             * Used to guarantee unique hash cookies
+             *
+             * @since 1.5.0
+             */
+            if ( ! defined( 'COOKIEHASH' ) ) {
+                $siteurl = get_site_option( 'siteurl' );
+                if ( $siteurl ) {
+                    define( 'COOKIEHASH', md5( $siteurl ) );
+                } else {
+                    define( 'COOKIEHASH', '' );
+                }
+            }
+
+            if ( ! defined( 'LOGGED_IN_COOKIE' ) ) {
+                define( 'LOGGED_IN_COOKIE', 'wordpress_logged_in_' . COOKIEHASH );
+            }
+
+            /**
+             * @since 2.5.0
+             */
+            if ( ! defined( 'AUTH_COOKIE' ) ) {
+                define( 'AUTH_COOKIE', 'wordpress_' . COOKIEHASH );
+            }
         }
 
         /**

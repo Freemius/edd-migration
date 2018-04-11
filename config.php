@@ -11,7 +11,7 @@
 	}
 
     if ( ! defined( 'WP_FSM__VERSION' )) {
-        define( 'WP_FSM__VERSION', '1.1.0' );
+        define( 'WP_FSM__VERSION', '1.1.1' );
     }
 
     if ( ! defined( 'WP_FSM__SLUG' ) ) {
