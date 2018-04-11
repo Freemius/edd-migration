@@ -14,8 +14,13 @@
         return;
     }
 
-    require_once dirname( __FILE__ ) . '/class-fs-client-license-abstract.php';
-    require_once dirname( __FILE__ ) . '/class-fs-edd-client-migration.php';
+    if ( ! class_exists( 'FS_Client_License_Abstract_v1' ) ) {
+        require_once dirname( __FILE__ ) . '/class-fs-client-license-abstract.php';
+    }
+
+    if ( ! class_exists( 'FS_EDD_Client_Migration_v1' ) ) {
+        require_once dirname( __FILE__ ) . '/class-fs-edd-client-migration.php';
+    }
 
     /**
      * You should use your own unique CLASS name, and be sure to replace it
