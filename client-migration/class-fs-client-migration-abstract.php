@@ -94,11 +94,13 @@
              */
             $this->_fs->add_filter( 'after_install_failure', array( &$this, 'try_migrate_on_activation' ), 10, 2 );
 
+            if ( $this->should_try_migrate() ) {
             if ( $this->has_any_keys() ) {
                 if ( ! defined( 'DOING_AJAX' ) ) {
                     $this->non_blocking_license_migration( $is_blocking );
                 }
             }
+        }
         }
 
         /**
@@ -137,6 +139,8 @@
                 set_transient( $transient_key, $response, 15 * MINUTE_IN_SECONDS );
             }
 
+            $should_migrate_transient = $this->get_should_migrate_transient_key();
+
             // make sure the response came back okay
             if ( is_wp_error( $response ) || 200 !== wp_remote_retrieve_response_code( $response ) ) {
                 $error_message = $response->get_error_message();
@@ -154,11 +158,11 @@
                 ) {
                     if ( isset( $response->error ) ) {
                         switch ( $response->error->code ) {
+                            case 'empty_license_key':
                             case 'invalid_license_key':
-                                // Invalid license key.
-                                break;
-                            case 'invalid_download_id':
-                                // Invalid download ID.
+                            case 'license_expired':
+                            case 'license_disabled':
+                                set_transient( $should_migrate_transient, 'no', WP_FS__TIME_24_HOURS_IN_SEC * 365 );
                                 break;
                             default:
                                 // Unexpected error.
@@ -600,6 +604,22 @@
                 $this->_children_license_keys;
         }
 
+
+        /**
+         * Check if should try to migrate or not.
+         *
+         * @author   Vova Feldman (@svovaf)
+         * @since    1.1.2
+         *
+         * @return bool
+         */
+        private function should_try_migrate() {
+            $key = $this->get_should_migrate_transient_key();
+
+            $should_migrate = get_transient( $key );
+
+            return ( ! is_string( $should_migrate ) || 'no' !== $should_migrate );
+        }
         #endregion
 
         #--------------------------------------------------------------------------------
