@@ -24,12 +24,13 @@
         /**
          *
          * @param Freemius                      $freemius
-         * @param string                        $edd_store_url        Your EDD store URL.
-         * @param int                           $edd_download_id      The context EDD download ID (from your store).
-         * @param FS_Client_License_Abstract_v1 $edd_license_accessor License accessor.
-         * @param bool                          $is_bundle            Is it a bundle migration or a regular product.
-         * @param bool                          $is_blocking          Special argument for testing. When false, will
-         *                                                            initiate the migration in the same HTTP request.
+         * @param string                        $edd_store_url                Your EDD store URL.
+         * @param int                           $edd_download_id              The context EDD download ID (from your store).
+         * @param FS_Client_License_Abstract_v1 $edd_license_accessor         License accessor.
+         * @param bool                          $is_bundle                    Is it a bundle migration or a regular product.
+         * @param bool                          $was_freemius_in_prev_version By default, the migration process will only be executed upon activation of the product for the 1st time with Freemius. By modifying this flag to `true`, it will also initiate a migration request even if the user already opted into Freemius. This flag is particularly relevant when the developer already released a Freemius powered version before releasing a version with the migration code.
+         * @param bool                          $is_blocking                  Special argument for testing. When false, will
+         *                                                                    initiate the migration in the same HTTP request.
          */
         public function __construct(
             Freemius $freemius,
@@ -37,6 +38,7 @@
             $edd_download_id,
             FS_Client_License_Abstract_v1 $edd_license_accessor,
             $is_bundle = false,
+            $was_freemius_in_prev_version = false,
             $is_blocking = false
         ) {
             $this->init(
@@ -46,6 +48,7 @@
                 $edd_download_id,
                 $edd_license_accessor,
                 $is_bundle,
+                $was_freemius_in_prev_version,
                 $is_blocking
             );
         }
