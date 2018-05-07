@@ -463,7 +463,7 @@
 
             $all_licenses = array();
 
-            if ( ! $is_network_migration || $this->_license_accessor->are_licenses_network_identical() ) {
+            if ( false === $is_network_migration || $this->_license_accessor->are_licenses_network_identical() ) {
                 if ( $this->_is_bundle ) {
                     $migration_data['children_license_keys'] = $this->get_children_licenses();
 
@@ -516,6 +516,51 @@
                 'data'     => $migration_data,
                 'licenses' => $all_licenses,
             );
+        }
+
+        /**
+         * Get a collection of all the license keys for the migration.
+         * We use this to generate a unique transient name to store a helper
+         * value to avoid trying a migration with a keys combination that already
+         * failed before.
+         *
+         * @author   Vova Feldman (@svovaf)
+         * @since    1.2.0
+         *
+         * @return string[]
+         */
+        private function get_all_migration_licenses() {
+            $is_network_migration = $this->_license_accessor->is_network_migration() ? true : null;
+
+            $all_licenses = array();
+
+            if ( false === $is_network_migration || $this->_license_accessor->are_licenses_network_identical() ) {
+                if ( $this->_is_bundle ) {
+                    $all_licenses = $this->get_children_licenses();
+                } else {
+                    $all_licenses[] = $this->get_license();
+                }
+            } else {
+                $blog_ids = $this->get_blog_ids();
+
+                foreach ( $blog_ids as $blog_id ) {
+                    $site_keys = $this->_is_bundle ?
+                        $this->get_children_licenses( $blog_id ) :
+                        $this->get_license( $blog_id );
+
+                    if ( empty( $site_keys ) ) {
+                        continue;
+                    }
+
+                    if ( is_array( $site_keys ) ) {
+                        $all_licenses = array_merge( $all_licenses, $site_keys );
+                    } else {
+                        $all_licenses[] = $site_keys;
+                    }
+                }
+            }
+
+            return $all_licenses;
         }
 
         /**
@@ -635,13 +680,26 @@
         }
 
         /**
+         * @var string
+         */
+        private $_shouldMigrateTransientKey;
+
+        /**
          * @author   Vova Feldman (@svovaf)
          * @since    1.1.2
          *
          * @return string
+         *
+         * @uses     get_all_migration_licenses()
          */
         private function get_should_migrate_transient_key() {
-            return 'fs_should_migrate_' . md5( $this->_store_url . ':' . $this->_product_id );
+            if ( ! isset( $this->_shouldMigrateTransientKey ) ) {
+                $keys = $this->get_all_migration_licenses();
+
+                $this->_shouldMigrateTransientKey = 'fs_should_migrate_' . md5( $this->_store_url . ':' . $this->_product_id . implode( ':', $keys ) );
+            }
+
+            return $this->_shouldMigrateTransientKey;
         }
 
         /**
