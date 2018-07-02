@@ -66,7 +66,9 @@
          * @return bool
          */
         public function site_has_key( $blog_id = null ) {
-            return ! empty( $this->get( $blog_id ) );
+            $key = $this->get( $blog_id );
+
+            return ! empty( $key );
         }
 
         /**
@@ -80,7 +82,9 @@
          * @return bool
          */
         public function site_has_children_keys( $blog_id = null ) {
-            return ! empty( $this->get_children( $blog_id ) );
+            $children_keys = $this->get_children( $blog_id );
+
+            return ! empty( $children_keys );
         }
 
         /**

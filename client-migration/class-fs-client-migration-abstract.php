@@ -51,19 +51,25 @@
         protected $_is_bundle;
 
         /**
+         * @var bool
+         */
+        protected $_was_freemius_in_prev_version;
+
+        /**
          * @var string Migration namespace.
          */
         protected $_namespace;
 
         /**
-         * @param string                        $namespace        Migration namespace (e.g. EDD, WC)
+         * @param string                        $namespace                    Migration namespace (e.g. EDD, WC)
          * @param Freemius                      $freemius
-         * @param string                        $store_url        Store URL.
-         * @param string                        $product_id       The product ID set on the system we're migrating from (not the Freemius product ID).
-         * @param FS_Client_License_Abstract_v1 $license_accessor License accessor.
-         * @param bool                          $is_bundle        Is it a bundle migration or a regular product.
-         * @param bool                          $is_blocking      Special argument for testing. When false, will
-         *                                                        initiate the migration in the same HTTP request.
+         * @param string                        $store_url                    Store URL.
+         * @param string                        $product_id                   The product ID set on the system we're migrating from (not the Freemius product ID).
+         * @param FS_Client_License_Abstract_v1 $license_accessor             License accessor.
+         * @param bool                          $is_bundle                    Is it a bundle migration or a regular product.
+         * @param bool                          $was_freemius_in_prev_version By default, the migration process will only be executed upon activation of the product for the 1st time with Freemius. By modifying this flag to `true`, it will also initiate a migration request even if the user already opted into Freemius. This flag is particularly relevant when the developer already released a Freemius powered version before releasing a version with the migration code.
+         * @param bool                          $is_blocking                  Special argument for testing. When false, will
+         *                                                                    initiate the migration in the same HTTP request.
          */
         protected function init(
             $namespace,
@@ -72,14 +78,16 @@
             $product_id,
             FS_Client_License_Abstract_v1 $license_accessor,
             $is_bundle = false,
+            $was_freemius_in_prev_version = false,
             $is_blocking = false
         ) {
-            $this->_namespace        = strtolower( $namespace );
-            $this->_fs               = $freemius;
-            $this->_store_url        = $store_url;
-            $this->_product_id       = $product_id;
-            $this->_license_accessor = $license_accessor;
-            $this->_is_bundle        = $is_bundle;
+            $this->_namespace                    = strtolower( $namespace );
+            $this->_fs                           = $freemius;
+            $this->_store_url                    = $store_url;
+            $this->_product_id                   = $product_id;
+            $this->_license_accessor             = $license_accessor;
+            $this->_is_bundle                    = $is_bundle;
+            $this->_was_freemius_in_prev_version = $was_freemius_in_prev_version;
 
             /**
              * If no license is set it might be one of the following:
@@ -94,9 +102,11 @@
              */
             $this->_fs->add_filter( 'after_install_failure', array( &$this, 'try_migrate_on_activation' ), 10, 2 );
 
-            if ( $this->has_any_keys() ) {
-                if ( ! defined( 'DOING_AJAX' ) ) {
-                    $this->non_blocking_license_migration( $is_blocking );
+            if ( $this->should_try_migrate() ) {
+                if ( $this->has_any_keys() ) {
+                    if ( ! defined( 'DOING_AJAX' ) ) {
+                        $this->non_blocking_license_migration( $is_blocking );
+                    }
                 }
             }
         }
@@ -137,6 +147,8 @@
                 set_transient( $transient_key, $response, 15 * MINUTE_IN_SECONDS );
             }
 
+            $should_migrate_transient = $this->get_should_migrate_transient_key();
+
             // make sure the response came back okay
             if ( is_wp_error( $response ) || 200 !== wp_remote_retrieve_response_code( $response ) ) {
                 $error_message = $response->get_error_message();
@@ -154,11 +166,11 @@
                 ) {
                     if ( isset( $response->error ) ) {
                         switch ( $response->error->code ) {
+                            case 'empty_license_key':
                             case 'invalid_license_key':
-                                // Invalid license key.
-                                break;
-                            case 'invalid_download_id':
-                                // Invalid download ID.
+                            case 'license_expired':
+                            case 'license_disabled':
+                                set_transient( $should_migrate_transient, 'no', WP_FS__TIME_24_HOURS_IN_SEC * 365 );
                                 break;
                             default:
                                 // Unexpected error.
@@ -174,6 +186,14 @@
 
                 // Delete transient on successful migration.
                 delete_transient( $transient_key );
+
+                if ( $this->_was_freemius_in_prev_version && $this->_fs->is_registered() ) {
+                    if ( $this->_license_accessor->is_network_migration() ) {
+                        $this->_fs->delete_network_account_event();
+                    } else {
+                        $this->_fs->delete_account_event();
+                    }
+                }
 
                 if ( $this->_license_accessor->is_network_migration() ) {
                     $installs = array();
@@ -193,6 +213,9 @@
                         $redirect
                     );
                 }
+
+                // Upon successful migration, store the no-migration flag for 5 years.
+                set_transient( $should_migrate_transient, 'no', WP_FS__TIME_24_HOURS_IN_SEC * 365 * 5 );
 
                 return true;
             }
@@ -275,8 +298,7 @@
          * @author   Vova Feldman (@svovaf)
          * @since    1.0.0
          *
-         * @param bool $is_blocking       Special argument for testing. When false, will initiate the migration in the
-         *                                same HTTP request.
+         * @param bool $is_blocking Special argument for testing. When false, will initiate the migration in the same HTTP request.
          *
          * @return string|bool
          */
@@ -286,23 +308,35 @@
                 return 'no_connectivity';
             }
 
-            if ( $this->_fs->is_registered() ) {
-                // User already identified by the API.
-                return 'user_registered';
+            if ( ! $this->_fs->is_premium() ) {
+                // Running the free product version, so don't migrate.
+                return 'free_code_version';
             }
 
-            if ( ! $this->_fs->is_activation_mode() ) {
-                // Plugin isn't in Freemius activation mode.
-                return 'not_in_activation';
-            }
-            if ( ! $this->_fs->is_plugin_upgrade_mode() ) {
-                // Plugin isn't in plugin upgrade mode.
-                return 'not_in_upgrade';
+            if ( $this->_fs->is_registered() && $this->_fs->has_any_license() ) {
+                // User already identified by the API and has a license.
+                return 'user_registered_with_license';
             }
 
-            if ( ! $this->_fs->is_first_freemius_powered_version() ) {
-                // It's not the 1st version of the plugin that runs with Freemius.
-                return 'freemius_installed_before';
+            if ( ! $this->_was_freemius_in_prev_version ) {
+                if ( $this->_fs->is_registered() ) {
+                    // User already identified by the API.
+                    return 'user_registered';
+                }
+
+                if ( ! $this->_fs->is_activation_mode() ) {
+                    // Plugin isn't in Freemius activation mode.
+                    return 'not_in_activation';
+                }
+                if ( ! $this->_fs->is_plugin_upgrade_mode() ) {
+                    // Plugin isn't in plugin upgrade mode.
+                    return 'not_in_upgrade';
+                }
+
+                if ( ! $this->_fs->is_first_freemius_powered_version() ) {
+                    // It's not the 1st version of the plugin that runs with Freemius.
+                    return 'freemius_installed_before';
+                }
             }
 
             $key = "fsm_{$this->_namespace}_{$this->_product_id}";
@@ -429,7 +463,7 @@
 
             $all_licenses = array();
 
-            if ( ! $is_network_migration || $this->_license_accessor->are_licenses_network_identical() ) {
+            if ( false === $is_network_migration || $this->_license_accessor->are_licenses_network_identical() ) {
                 if ( $this->_is_bundle ) {
                     $migration_data['children_license_keys'] = $this->get_children_licenses();
 
@@ -485,6 +519,51 @@
         }
 
         /**
+         * Get a collection of all the license keys for the migration.
+         * We use this to generate a unique transient name to store a helper
+         * value to avoid trying a migration with a keys combination that already
+         * failed before.
+         *
+         * @author   Vova Feldman (@svovaf)
+         * @since    1.2.0
+         *
+         * @return string[]
+         */
+        private function get_all_migration_licenses() {
+            $is_network_migration = $this->_license_accessor->is_network_migration() ? true : null;
+
+            $all_licenses = array();
+
+            if ( false === $is_network_migration || $this->_license_accessor->are_licenses_network_identical() ) {
+                if ( $this->_is_bundle ) {
+                    $all_licenses = $this->get_children_licenses();
+                } else {
+                    $all_licenses[] = $this->get_license();
+                }
+            } else {
+                $blog_ids = $this->get_blog_ids();
+
+                foreach ( $blog_ids as $blog_id ) {
+                    $site_keys = $this->_is_bundle ?
+                        $this->get_children_licenses( $blog_id ) :
+                        $this->get_license( $blog_id );
+
+                    if ( empty( $site_keys ) ) {
+                        continue;
+                    }
+
+                    if ( is_array( $site_keys ) ) {
+                        $all_licenses = array_merge( $all_licenses, $site_keys );
+                    } else {
+                        $all_licenses[] = $site_keys;
+                    }
+                }
+            }
+
+            return $all_licenses;
+        }
+
+        /**
          * Define cookie constants which are required by Freemius::get_opt_in_params() since
          * it uses wp_get_current_user() which needs the cookie constants set. When a plugin
          * is network activated the cookie constants are only configured after the network
@@ -496,7 +575,7 @@
          */
         private function wp_cookie_constants() {
             if ( defined( 'LOGGED_IN_COOKIE' ) &&
-                 defined( 'AUTH_COOKIE' )
+                 ( defined( 'AUTH_COOKIE' ) || defined( 'SECURE_AUTH_COOKIE' ) )
             ) {
                 return;
             }
@@ -524,6 +603,13 @@
              */
             if ( ! defined( 'AUTH_COOKIE' ) ) {
                 define( 'AUTH_COOKIE', 'wordpress_' . COOKIEHASH );
+            }
+
+            /**
+             * @since 2.6.0
+             */
+            if ( ! defined( 'SECURE_AUTH_COOKIE' ) ) {
+                define( 'SECURE_AUTH_COOKIE', 'wordpress_sec_' . COOKIEHASH );
             }
         }
 
@@ -598,6 +684,45 @@
             return empty( $this->_children_license_keys ) ?
                 $this->_license_accessor->get_children( $blog_id ) :
                 $this->_children_license_keys;
+        }
+
+        /**
+         * @var string
+         */
+        private $_shouldMigrateTransientKey;
+
+        /**
+         * @author   Vova Feldman (@svovaf)
+         * @since    1.1.2
+         *
+         * @return string
+         *
+         * @uses     get_all_migration_licenses()
+         */
+        private function get_should_migrate_transient_key() {
+            if ( ! isset( $this->_shouldMigrateTransientKey ) ) {
+                $keys = $this->get_all_migration_licenses();
+
+                $this->_shouldMigrateTransientKey = 'fs_should_migrate_' . md5( $this->_store_url . ':' . $this->_product_id . implode( ':', $keys ) );
+            }
+
+            return $this->_shouldMigrateTransientKey;
+        }
+
+        /**
+         * Check if should try to migrate or not.
+         *
+         * @author   Vova Feldman (@svovaf)
+         * @since    1.1.2
+         *
+         * @return bool
+         */
+        private function should_try_migrate() {
+            $key = $this->get_should_migrate_transient_key();
+
+            $should_migrate = get_transient( $key );
+
+            return ( ! is_string( $should_migrate ) || 'no' !== $should_migrate );
         }
 
         #endregion

@@ -119,11 +119,32 @@
          * @param int $license_id
          */
         private function load_edd_entities( $license_id ) {
-            $download_id        = get_post_meta( $license_id, '_edd_sl_download_id', true );
-            $initial_payment_id = get_post_meta( $license_id, '_edd_sl_payment_id', true );
-            $customer_id        = edd_get_payment_customer_id( $initial_payment_id );
+            $download_id = get_post_meta( $license_id, '_edd_sl_download_id', true );
 
-            $this->_edd_license  = get_post( $license_id );
+            $this->_edd_license = new EDD_SL_License( $license_id );
+
+            $last_license_payments = edd_get_payments( array(
+                'post__in' => $this->_edd_license->payment_ids,
+                'number'   => 1,
+                'status'   => array( 'publish' ),
+                'order'    => 'DESC',
+                'orderby'  => 'ID',
+            ) );
+
+            if ( is_array( $last_license_payments ) && 0 < count( $last_license_payments ) ) {
+                $payment = new EDD_Payment( $last_license_payments[0]->ID );
+
+                if ( 0 == $payment->parent_payment ) {
+                    $initial_payment_id = $payment->ID;
+                } else {
+                    $initial_payment_id = $payment->parent_payment;
+                }
+            } else {
+                $initial_payment_id = get_post_meta( $license_id, '_edd_sl_payment_id', true );
+            }
+
+            $customer_id = edd_get_payment_customer_id( $initial_payment_id );
+
             $this->_edd_download = new EDD_Download( $download_id );
             $this->_edd_customer = new EDD_Customer( $customer_id );
             $this->_edd_payment  = new EDD_Payment( $initial_payment_id );
@@ -1172,7 +1193,17 @@
                 $vat['country_code'] = $address['address_country_code'];
             }
 
-            if ( class_exists( '\lyquidity\edd_vat\Actions' ) ) {
+            if ( is_object( $this->_edd_payment ) ) {
+                $user_info = edd_get_payment_meta_user_info( $this->_edd_payment->ID );
+
+                if ( is_array( $user_info ) && ! empty( $user_info['vat_number'] ) ) {
+                    // Check if the payment's meta has the VAT ID.
+                    $vat['vat_id'] = $user_info['vat_number'];
+                }
+            }
+
+            if ( empty( $vat['vat_id'] ) && class_exists( '\lyquidity\edd_vat\Actions' ) ) {
+                // Otherwise, try to pull the VAT ID from the user info.
                 if ( ! empty( $this->_edd_customer->user_id ) ) {
                     $vat_id = \lyquidity\edd_vat\Actions::instance()->get_vat_number( '',
                         $this->_edd_customer->user_id );
