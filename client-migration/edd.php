@@ -152,11 +152,11 @@
         new My_EDD_License_Key(),
 
         // Is it a bundle to a single product migration?
-        true,
+        false,
 
         // Freemius was NOT included in the previous (last) version of the product.
         false,
 
         // For testing, you can change that argument to TRUE to trigger the migration in the same HTTP request.
-        true
+        false
     );

@@ -443,7 +443,7 @@
          * @return array
          */
         private function get_site_migration_data_and_licenses() {
-            $is_network_migration = $this->_license_accessor->is_network_migration() ? true : null;
+            $is_network_migration = $this->_license_accessor->is_network_migration();
 
             $this->wp_cookie_constants();
 
@@ -455,7 +455,7 @@
                 // The plugin is active for sure and not uninstalled.
                 'is_active'      => true,
                 'is_uninstalled' => false,
-            ), $is_network_migration );
+            ), ( $is_network_migration ? true : null ) );
 
             // Clean unnecessary arguments.
             unset( $migration_data['return_url'] );
