@@ -530,7 +530,7 @@
          * @return string[]
          */
         private function get_all_migration_licenses() {
-            $is_network_migration = $this->_license_accessor->is_network_migration() ? true : null;
+            $is_network_migration = $this->_license_accessor->is_network_migration();
 
             $all_licenses = array();
 
