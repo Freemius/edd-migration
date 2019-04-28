@@ -382,7 +382,9 @@
          * @return object|string
          */
         public function try_migrate_on_activation( $response, $args ) {
-            if ( empty( $args['license_key'] ) || 32 !== strlen( $args['license_key'] ) ) {
+            if ( empty( $args['license_key'] ) ||
+                 $this->_fs->apply_filters('license_key_maxlength', 32) !== strlen( $args['license_key'] )
+            ) {
                 // No license key provided (or invalid length), ignore.
                 return $response;
             }
