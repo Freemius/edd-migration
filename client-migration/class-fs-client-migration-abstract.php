@@ -242,6 +242,24 @@
                     $this->_fs->remove_sticky( 'plan_upgraded' );
                 }
 
+                if ( $this->_fs->is_addon() ) {
+                    $parent_fs = $this->_fs->get_parent_instance();
+
+                    if ( ! $parent_fs->is_registered() && $parent_fs->has_free_plan() ) {
+                        // Opt-in to the parent with the add-on's user.
+                        $parent_fs->install_with_user(
+                            $fs_user,
+                            false,
+                            false,
+                            false,
+                            true,
+                            $this->_license_accessor->is_network_migration() ?
+                                $parent_fs->$this->get_sites_for_network_level_optin() :
+                                array()
+                        );
+                    }
+                }
+
                 // Upon successful migration, store the no-migration flag for 5 years.
                 set_transient( $should_migrate_transient, 'no', WP_FS__TIME_24_HOURS_IN_SEC * 365 * 5 );
 
