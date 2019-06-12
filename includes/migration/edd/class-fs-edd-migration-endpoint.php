@@ -399,7 +399,7 @@
          * @throws \FS_Endpoint_Exception
          */
         protected function validate_site_params(
-            $download_id,
+            &$download_id,
             $url,
             &$license_key,
             $children_license_keys
@@ -407,6 +407,30 @@
             $url = FS_EDD_Migration::strip_path_from_url( $url );
 
             if ( ! empty( $license_key ) ) {
+                $license = edd_software_licensing()->get_license( $license_key, true );
+
+                if (is_object( $license) &&
+                    !empty( $license->parent )
+                ) {
+                    /**
+                     * If the license key is associated with a bundle license, migrate the bundle license instead of the individual product license.
+                     *
+                     * @author Vova Feldman
+                     *
+                     * @var EDD_SL_License $parent_license
+                     */
+                    $parent_license = edd_software_licensing()->get_license( $license->parent );
+
+                    if ( is_object( $parent_license ) &&
+                         is_object( $parent_license->download ) &&
+                         $parent_license->download->is_bundled_download()
+                    ) {
+                        // Current's license's parent is corrupted.
+                        $download_id = $parent_license->download->ID;
+                        $license_key = $parent_license->key;
+                    }
+                }
+
                 // Get EDD license state.
                 $edd_license_state = edd_software_licensing()->check_license( array(
                     'item_id'   => $download_id,
