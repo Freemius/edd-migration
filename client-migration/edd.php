@@ -14,11 +14,11 @@
         return;
     }
 
-    if ( ! class_exists( 'FS_Client_License_Abstract_v1' ) ) {
+    if ( ! class_exists( 'FS_Client_License_Abstract_v2' ) ) {
         require_once dirname( __FILE__ ) . '/class-fs-client-license-abstract.php';
     }
 
-    if ( ! class_exists( 'FS_EDD_Client_Migration_v1' ) ) {
+    if ( ! class_exists( 'FS_EDD_Client_Migration_v2' ) ) {
         require_once dirname( __FILE__ ) . '/class-fs-edd-client-migration.php';
     }
 

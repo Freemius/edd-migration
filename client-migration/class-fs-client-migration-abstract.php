@@ -10,11 +10,11 @@
         exit;
     }
 
-    if ( class_exists( 'FS_Client_Migration_Abstract_v1' ) ) {
+    if ( class_exists( 'FS_Client_Migration_Abstract_v2' ) ) {
         return;
     }
 
-    abstract class FS_Client_Migration_Abstract_v1 {
+    abstract class FS_Client_Migration_Abstract_v2 {
         /**
          * @var \Freemius Freemius instance manager.
          */
@@ -41,7 +41,7 @@
         protected $_children_license_keys;
 
         /**
-         * @var FS_Client_License_Abstract_v1
+         * @var FS_Client_License_Abstract_v2
          */
         protected $_license_accessor;
 
@@ -65,8 +65,8 @@
          * @param Freemius                      $freemius
          * @param string                        $store_url                    Store URL.
          * @param string                        $product_id                   The product ID set on the system we're migrating from (not the Freemius product ID).
-         * @param FS_Client_License_Abstract_v1 $license_accessor             License accessor.
          * @param bool                          $is_bundle                    Is it a bundle migration or a regular product.
+         * @param FS_Client_License_Abstract_v2 $license_accessor             License accessor.
          * @param bool                          $was_freemius_in_prev_version By default, the migration process will only be executed upon activation of the product for the 1st time with Freemius. By modifying this flag to `true`, it will also initiate a migration request even if the user already opted into Freemius. This flag is particularly relevant when the developer already released a Freemius powered version before releasing a version with the migration code.
          * @param bool                          $is_blocking                  Special argument for testing. When false, will
          *                                                                    initiate the migration in the same HTTP request.
@@ -76,8 +76,8 @@
             Freemius $freemius,
             $store_url,
             $product_id,
-            FS_Client_License_Abstract_v1 $license_accessor,
             $is_bundle = false,
+            FS_Client_License_Abstract_v2 $license_accessor,
             $was_freemius_in_prev_version = false,
             $is_blocking = false
         ) {
