@@ -64,6 +64,11 @@
          */
         protected $_edd_installs_data;
 
+        /**
+         * @var bool
+         */
+        protected $_is_bundle;
+
         #endregion
 
         #--------------------------------------------------------------------------------
@@ -122,6 +127,8 @@
             $download_id = get_post_meta( $license_id, '_edd_sl_download_id', true );
 
             $this->_edd_license = new EDD_SL_License( $license_id );
+
+            $this->_is_bundle = ( 'bundle' === edd_get_download_type( $download_id ) );
 
             $last_license_payments = edd_get_payments( array(
                 'post__in' => $this->_edd_license->payment_ids,
@@ -554,6 +561,18 @@
          */
         protected function get_local_subscription_renewal_id( $index = 0 ) {
             return $this->_edd_renewals[ $index ]->ID;
+        }
+
+        /**
+         * Checks if migrating a license that is associated with a bundle.
+         *
+         * @author Vova Feldman
+         * @since  2.0.0
+         *
+         * @return bool
+         */
+        public function local_is_bundle() {
+            return $this->_is_bundle;
         }
 
         #endregion

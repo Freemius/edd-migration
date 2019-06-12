@@ -323,13 +323,38 @@
         protected function migrate_license_and_installs() {
             require_once WP_FSM__DIR_MIGRATION . '/edd/class-fs-edd-migration.php';
 
-            $license_id = edd_software_licensing()->get_license_by_key( $this->get_param( 'license_key' ) );
+            $license_key = $this->get_param( 'license_key' );
+            $license_id  = edd_software_licensing()->get_license_by_key( $license_key );
 
             $migration = FS_EDD_Migration::instance( $license_id );
             $migration->set_api( $this->get_api() );
 
             // Migrate customer, purchase/subscription, billing and license.
             $customer = $migration->do_migrate_license();
+
+            if ( $migration->local_is_bundle() ) {
+                if ( ! is_object( $customer ) ) {
+                    $result = $migration->fetch_user_from_freemius_by_id( $customer );
+
+                    if ( ! is_object( $result ) ) {
+                        throw new FS_Endpoint_Exception( "Failed to fetch user ({$customer}) from Freemius." );
+                    }
+
+                    $customer = $result;
+                }
+
+                // When migrating a bundle's license, do not create the installs, those will be created on the client's side by simply activating the license after it was already migrated.
+                return array(
+                    'user'        => $customer,
+                    'type'        => 'bundle',
+                    /**
+                     * Return the bundle's license key for cases when the migration was initiated by a product license key that is associated with a bundle.
+                     *
+                     * @author Vova Feldman
+                     */
+                    'license_key' => $license_key,
+                );
+            }
 
             if ( ! $this->is_multisite_migration() ) {
                 // Migrate plugin installation.

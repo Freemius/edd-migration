@@ -664,7 +664,7 @@
         }
 
         /**
-         * Checks if bundle migration.
+         * Checks if migration child add-ons' licenses to an actual parent product on Freemius. This is specifically relevant for developers that changing their business model from selling add-ons to plans during the migration process.
          *
          * @author Vova Feldman
          * @since  1.1.0
