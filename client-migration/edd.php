@@ -27,7 +27,46 @@
      * throughout this file. For example, if your product's name is "Awesome Product"
      * then you can rename it to "Awesome_Product_EDD_License_Key".
      */
-    class My_EDD_License_Key extends FS_Client_License_Abstract_v1 {
+    class My_EDD_License_Key extends FS_Client_License_Abstract_v2 {
+        /**
+         * @var bool
+         */
+        private $_is_bundle = false;
+        /**
+         * @var string
+         */
+        private $_child_identifier;
+
+        /**
+         * @todo When migrating a store that sell bundles, set this array to include the child products identifiers as the keys, and the values should include the Freemius SDK shortcodes of those child products, correspondingly.
+         *
+         * Example:
+         *      array(
+         *          'Child1_Class' => array('name' => 'Child1', 'shortcode' => 'fs_child1'),
+         *
+         *          ...
+         *
+         *          'ChildN_Class' => array('name' => 'ChildN', 'shortcode' => 'fs_childN'),
+         *      )
+         *
+         * @var array<string,array<string,mixed>>
+         */
+        private static $paid_children;
+
+        /**
+         * My_EDD_License_Key constructor.
+         *
+         * @todo This constructor can be removed when migrating regular products (no bundles).
+         *
+         * @param bool   $is_bundle
+         * @param string $child_identifier
+         * @param string $child_name
+         */
+        function __construct( $is_bundle = false, $child_identifier = '', $child_name = '' ) {
+            $this->_is_bundle        = $is_bundle;
+            $this->_child_identifier = $child_identifier;
+        }
+
         /**
          * @author   Vova Feldman (@svovaf)
          * @since    1.0.3
@@ -137,26 +176,126 @@
         public function are_licenses_network_identical() {
             return false;
         }
+
+        /**
+         * Activates a bundle license on the installed child products, after successfully migrating the license.
+         *
+         * @author   Vova Feldman (@svovaf)
+         * @since    2.0.0
+         *
+         * @param \FS_User    $user
+         * @param string|null $bundle_license_key
+         */
+        public function activate_bundle_license_after_migration( FS_User $user, $bundle_license_key = null ) {
+            if ( $this->_is_bundle || empty( $bundle_license_key ) ) {
+                $bundle_license_key = $this->get();
+            }
+
+            // Iterate over the installed add-ons and try to activate the bundle's license for each add-on.
+            foreach ( self::$paid_children as $child_identifier => $data ) {
+                if ( ! $this->is_child_installed_and_active( $child_identifier ) ) {
+                    continue;
+                }
+
+                $shortcode = $this->get_child_freemius_shortcode( $child_identifier );
+
+                if ( ! function_exists( $shortcode ) ) {
+                    continue;
+                }
+
+                /**
+                 * Initiate the Freemius instance before migrating.
+                 *
+                 * @var Freemius $child_fs
+                 */
+                $child_fs = call_user_func( $shortcode );
+
+                $child_fs->activate_migrated_license( $bundle_license_key );
+            }
+        }
+
+        /**
+         * Checks if the child/add-on is installed and activated.
+         *
+         * @author   Vova Feldman (@svovaf)
+         * @since    2.0.0
+         *
+         * @param string|mixed $child_identifier
+         *
+         * @return bool
+         */
+        public function is_child_installed_and_active( $child_identifier ) {
+            /**
+             * @todo This should be replaced with some logic that checks if the child/add-on is installed and activated.
+             */
+            return class_exists( $child_identifier );
+//            return function_exists( $child_identifier );
+        }
+
+        /**
+         * Gets the child/add-on's Freemius shortcode string.
+         *
+         * @author   Vova Feldman (@svovaf)
+         * @since    2.0.0
+         *
+         * @param string|mixed $child_identifier
+         *
+         * @return string
+         */
+        public function get_child_freemius_shortcode( $child_identifier ) {
+            /**
+             * @todo This should be replaced with some logic that gets the child/add-on's Freemius shortcode string.
+             */
+            return self::$paid_children[ $child_identifier ]['shortcode'];
+        }
     }
 
-    new FS_EDD_Client_Migration_v1(
-        // This should be replaced with your custom Freemius shortcode.
-        my_freemius(),
+    $is_migration_debug = ( defined( 'WP_FS__MIGRATION_DEBUG' ) && true === WP_FS__MIGRATION_DEBUG );
+    $is_migration_off   = ( defined( 'WP_FS__MIGRATION_OFF' ) && true === WP_FS__MIGRATION_OFF );
 
-        // This should point to your EDD store root URL.
-        'https://your-edd-store.com',
+    if ( ! $is_migration_off ) {
+        if ( ! $is_migration_debug ||
+             ( ( ! defined( 'DOING_AJAX' ) || true !== DOING_AJAX ) &&
+               ( ! defined( 'DOING_CRON' ) || true !== DOING_CRON )
+             )
+        ) {
+            /**
+             * @todo When migrating a bundle, set this var to `true`.
+             */
+            $is_bundle_migration = false;
 
-        // The EDD download ID of your product.
-        '2116',
+            $bundle_license_manager = new My_EDD_License_Key( $is_bundle_migration );
 
-        new My_EDD_License_Key(),
+            // @todo We need to make sure that if there's both a bundle license and individual add-on license, it first migrates the bundle’s license, and only later migrate the individual license, but only if the bundle’s migration failed.
 
-        // Is it a bundle to a single product migration?
-        false,
+            if ( empty( $bundle_license_manager->get() ) ) {
+                // Bundle license is not set, try to migrate per add-on.
+                do_action( '<REPLACE_WITH_PARENT_SHORTCODE>_client_migration_loaded' );
+            } else {
+                // Bundle license is set, try to migrate the bundle's license.
+                new FS_EDD_Client_Migration_v2(
+                // This should be replaced with your custom Freemius shortcode.
+                    my_freemius(),
 
-        // Freemius was NOT included in the previous (last) version of the product.
-        false,
+                    // This should point to your EDD store root URL.
+                    '<HTTPS://YOUR-EDD-STORE.COM>',
 
-        // For testing, you can change that argument to TRUE to trigger the migration in the same HTTP request.
-        false
-    );
+                    // The bundle's download ID.
+                    '<REPLACE_WITH_THE_DOWNLOAD_ID>',
+
+                    new My_EDD_License_Key( $is_bundle_migration ),
+
+                    // Migration type.
+                    ( $is_bundle_migration ?
+                        FS_Client_Migration_Abstract_v2::TYPE_BUNDLE_TO_BUNDLE :
+                        FS_Client_Migration_Abstract_v2::TYPE_CHILDREN_TO_PRODUCT ),
+
+                    // Freemius was NOT included in the previous (last) version of the product.
+                    false,
+
+                    // For testing, you can change that argument to TRUE to trigger the migration in the same HTTP request.
+                    $is_migration_debug
+                );
+            }
+        }
+    }

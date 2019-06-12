@@ -123,4 +123,28 @@
          * @param string|null $bundle_license_key
          */
         abstract function activate_bundle_license_after_migration( FS_User $user, $bundle_license_key = null );
+
+        /**
+         * Checks if the child/add-on is installed and activated.
+         *
+         * @author   Vova Feldman (@svovaf)
+         * @since    2.0.0
+         *
+         * @param string|mixed $child_identifier
+         *
+         * @return bool
+         */
+        abstract function is_child_installed_and_active( $child_identifier );
+
+        /**
+         * Gets the child/add-on's Freemius shortcode string.
+         *
+         * @author   Vova Feldman (@svovaf)
+         * @since    2.0.0
+         *
+         * @param string|mixed $child_identifier
+         *
+         * @return string
+         */
+        abstract function get_child_freemius_shortcode( $child_identifier );
     }
