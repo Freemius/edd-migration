@@ -93,9 +93,7 @@
          * @return string[]
          */
         function get_children( $blog_id = null ) {
-            global $wpdb;
-
-            $blog_ids = $wpdb->get_col( "SELECT blog_id FROM {$wpdb->blogs}" );
+            $blog_ids = FS_EDD_Client_Migration_v2::get_blog_ids();
 
             $children_license_keys = array();
             foreach ( $blog_ids as $blog_id ) {
