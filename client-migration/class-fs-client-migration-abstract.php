@@ -48,7 +48,7 @@
         /**
          * @var bool
          */
-        protected $_is_bundle;
+        protected $_migraiton_type;
 
         /**
          * @var bool
@@ -61,12 +61,25 @@
         protected $_namespace;
 
         /**
+         * A migration of a product's license to the same product on Freemius.
+         */
+        const TYPE_PRODUCT_TO_PRODUCT = 'product';
+        /**
+         * A migration of bundle's child product licenses to a single license of a selected product on Freemius. This particular migration type should be used if the developer is transitioning from selling add-ons bundles via EDD into selling plans of the add-on's parent product instead.
+         */
+        const TYPE_CHILDREN_TO_PRODUCT = 'children';
+        /**
+         * A migration of a bundle's license from a product within the bundle. Since the migration is of a bundle's license, the resulting request will not generate any installs (bundle's don't have installs), so the activation of the bundle's license will be handled as a callback after the license migration.
+         */
+        const TYPE_BUNDLE_TO_BUNDLE = 'bundle';
+
+        /**
          * @param string                        $namespace                    Migration namespace (e.g. EDD, WC)
          * @param Freemius                      $freemius
          * @param string                        $store_url                    Store URL.
          * @param string                        $product_id                   The product ID set on the system we're migrating from (not the Freemius product ID).
-         * @param bool                          $is_bundle                    Is it a bundle migration or a regular product.
          * @param FS_Client_License_Abstract_v2 $license_accessor             License accessor.
+         * @param string                        $migration_type               Migration type.
          * @param bool                          $was_freemius_in_prev_version By default, the migration process will only be executed upon activation of the product for the 1st time with Freemius. By modifying this flag to `true`, it will also initiate a migration request even if the user already opted into Freemius. This flag is particularly relevant when the developer already released a Freemius powered version before releasing a version with the migration code.
          * @param bool                          $is_blocking                  Special argument for testing. When false, will
          *                                                                    initiate the migration in the same HTTP request.
@@ -76,8 +89,8 @@
             Freemius $freemius,
             $store_url,
             $product_id,
-            $is_bundle = false,
             FS_Client_License_Abstract_v2 $license_accessor,
+            $migration_type = self::TYPE_PRODUCT_TO_PRODUCT,
             $was_freemius_in_prev_version = false,
             $is_blocking = false
         ) {
@@ -86,7 +99,7 @@
             $this->_store_url                    = $store_url;
             $this->_product_id                   = $product_id;
             $this->_license_accessor             = $license_accessor;
-            $this->_is_bundle                    = $is_bundle;
+            $this->_migraiton_type               = $migration_type;
             $this->_was_freemius_in_prev_version = $was_freemius_in_prev_version;
 
             /**
@@ -195,6 +208,18 @@
                     }
                 }
 
+                $fs_user = new FS_User( $response->data->user );
+
+                if ( self::TYPE_BUNDLE_TO_BUNDLE === $this->_migraiton_type ||
+                     isset( $response->data->type ) && self::TYPE_BUNDLE_TO_BUNDLE === $response->data->type
+                ) {
+                    $this->_license_accessor->activate_bundle_license_after_migration(
+                        $fs_user,
+                        (self::TYPE_BUNDLE_TO_BUNDLE === $this->_migraiton_type) ?
+                            null :
+                            $response->data->license_key
+                    );
+                } else {
                 if ( $this->_license_accessor->is_network_migration() ) {
                     $installs = array();
                     foreach ( $response->data->installs as $install ) {
@@ -202,16 +227,19 @@
                     }
 
                     $this->_fs->setup_network_account(
-                        new FS_User( $response->data->user ),
+                            $fs_user,
                         $installs,
                         $redirect
                     );
                 } else {
                     $this->_fs->setup_account(
-                        new FS_User( $response->data->user ),
+                            $fs_user,
                         new FS_Site( $response->data->install ),
                         $redirect
                     );
+                }
+
+                    $this->_fs->remove_sticky( 'plan_upgraded' );
                 }
 
                 // Upon successful migration, store the no-migration flag for 5 years.
@@ -308,12 +336,12 @@
                 return 'no_connectivity';
             }
 
-            if ( ! $this->_fs->is_premium() ) {
+            if ( ! $this->_fs->is_premium() && self::TYPE_BUNDLE_TO_BUNDLE != $this->_migraiton_type ) {
                 // Running the free product version, so don't migrate.
                 return 'free_code_version';
             }
 
-            if ( $this->_fs->is_registered() && $this->_fs->has_any_license() ) {
+            if ( $this->_fs->is_registered() && $this->_fs->has_any_license( false ) ) {
                 // User already identified by the API and has a license.
                 return 'user_registered_with_license';
             }
@@ -398,7 +426,7 @@
                  ( is_string( $response->error ) && false !== strpos( strtolower( $response->error ), 'license' ) )
             ) {
                 // Set license for migration.
-                if ( $this->_is_bundle ) {
+                if ( self::TYPE_CHILDREN_TO_PRODUCT === $this->_migraiton_type ) {
                     $this->_children_license_keys = array( $args['license_key'] );
                 } else {
                     $this->_license_key = $args['license_key'];
@@ -466,7 +494,7 @@
             $all_licenses = array();
 
             if ( false === $is_network_migration || $this->_license_accessor->are_licenses_network_identical() ) {
-                if ( $this->_is_bundle ) {
+                if ( self::TYPE_CHILDREN_TO_PRODUCT === $this->_migraiton_type ) {
                     $migration_data['children_license_keys'] = $this->get_children_licenses();
 
                     $all_licenses = $migration_data['children_license_keys'];
@@ -476,12 +504,12 @@
                     $all_licenses[] = $migration_data['license_key'];
                 }
             } else {
-                $blog_ids = $this->get_blog_ids();
+                $blog_ids = self::get_blog_ids();
 
                 $keys_by_blog_id = array();
 
                 foreach ( $blog_ids as $blog_id ) {
-                    $site_keys = $this->_is_bundle ?
+                    $site_keys = ( self::TYPE_CHILDREN_TO_PRODUCT === $this->_migraiton_type ) ?
                         $this->get_children_licenses( $blog_id ) :
                         $this->get_license( $blog_id );
 
@@ -537,16 +565,16 @@
             $all_licenses = array();
 
             if ( false === $is_network_migration || $this->_license_accessor->are_licenses_network_identical() ) {
-                if ( $this->_is_bundle ) {
+                if ( self::TYPE_CHILDREN_TO_PRODUCT === $this->_migraiton_type ) {
                     $all_licenses = $this->get_children_licenses();
                 } else {
                     $all_licenses[] = $this->get_license();
                 }
             } else {
-                $blog_ids = $this->get_blog_ids();
+                $blog_ids = self::get_blog_ids();
 
                 foreach ( $blog_ids as $blog_id ) {
-                    $site_keys = $this->_is_bundle ?
+                    $site_keys = ( self::TYPE_CHILDREN_TO_PRODUCT === $this->_migraiton_type ) ?
                         $this->get_children_licenses( $blog_id ) :
                         $this->get_license( $blog_id );
 
@@ -640,15 +668,15 @@
          */
         private function has_any_keys() {
             if ( ! $this->_license_accessor->is_network_migration() ) {
-                return $this->_is_bundle ?
+                return ( self::TYPE_CHILDREN_TO_PRODUCT === $this->_migraiton_type ) ?
                     $this->_license_accessor->site_has_children_keys() :
                     $this->_license_accessor->site_has_key();
             }
 
-            $blog_ids = $this->get_blog_ids();
+            $blog_ids = self::get_blog_ids();
 
             foreach ( $blog_ids as $blog_id ) {
-                $site_has_keys = $this->_is_bundle ?
+                $site_has_keys = ( self::TYPE_CHILDREN_TO_PRODUCT === $this->_migraiton_type ) ?
                     $this->_license_accessor->site_has_children_keys( $blog_id ) :
                     $this->_license_accessor->site_has_key( $blog_id );
 
@@ -812,7 +840,7 @@
          *
          * @return int[]
          */
-        private function get_blog_ids() {
+        public static function get_blog_ids() {
             global $wpdb;
 
             return $wpdb->get_col( "SELECT blog_id FROM {$wpdb->blogs}" );
