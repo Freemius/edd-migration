@@ -332,7 +332,9 @@
             // Migrate customer, purchase/subscription, billing and license.
             $customer = $migration->do_migrate_license();
 
-            if ( $migration->local_is_bundle() ) {
+            $parent_plugin_id = $this->get_param( 'parent_plugin_id' );
+
+            if ( is_numeric( $parent_plugin_id ) || $migration->local_is_bundle() ) {
                 if ( ! is_object( $customer ) ) {
                     $result = $migration->fetch_user_from_freemius_by_id( $customer );
 
@@ -343,12 +345,12 @@
                     $customer = $result;
                 }
 
-                // When migrating a bundle's license, do not create the installs, those will be created on the client's side by simply activating the license after it was already migrated.
+                // When migrating a bundle's or an addon's license, do not create the installs, those will be created on the client's side by simply activating the license after it was already migrated.
                 return array(
                     'user'        => $customer,
-                    'type'        => 'bundle',
+                    'type'        => $migration->local_is_bundle() ? 'bundle' : 'addon',
                     /**
-                     * Return the bundle's license key for cases when the migration was initiated by a product license key that is associated with a bundle.
+                     * Return the license key for cases when the migration was initiated by a product license key that is associated with a bundle or an add-on.
                      *
                      * @author Vova Feldman
                      */
