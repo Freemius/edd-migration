@@ -33,9 +33,6 @@
          */
         public function init_sdk( array $config ) {
             if ( ! isset( $this->_addon_fs ) ) {
-                // Include Freemius SDK.
-                file_exists( WP_PLUGIN_DIR . '/wp-security-audit-log-premium/sdk/freemius/start.php' );
-
                 if ( empty( $config['premium_slug'] ) ) {
                     // Currently all premium add-ons are premium-only.
                     $config['premium_slug'] = $config['slug'];
