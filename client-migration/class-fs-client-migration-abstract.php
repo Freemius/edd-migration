@@ -220,6 +220,14 @@
                             $response->data->license_key
                     );
                 } else {
+                    if ( isset( $response->data->type ) && 'addon' === $response->data->type ) {
+                        /**
+                         * An environment can have multiple add-ons with activated licenses that were purchased by different customers. Since the add-on install entities need to be associated with the same user that is connected with the parent product's install, the new migration logic on the migrating store will NOT create the install for add-ons, to avoid the situation when a license is activated on an install that is owned by a different user. Therefore, the actual install creation will happen on the client's site right here. And if the license belongs to a different user, it will be treated as a foreign license.
+                         *
+                         * @author Vova Feldman
+                         */
+                        $this->_fs->activate_migrated_license( $response->data->license_key );
+                } else {
                 if ( $this->_license_accessor->is_network_migration() ) {
                     $installs = array();
                     foreach ( $response->data->installs as $install ) {
@@ -240,6 +248,7 @@
                 }
 
                     $this->_fs->remove_sticky( 'plan_upgraded' );
+                }
                 }
 
                 if ( $this->_fs->is_addon() ) {
