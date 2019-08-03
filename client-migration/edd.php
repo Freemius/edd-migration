@@ -26,6 +26,8 @@
      * You should use your own unique CLASS name, and be sure to replace it
      * throughout this file. For example, if your product's name is "Awesome Product"
      * then you can rename it to "Awesome_Product_EDD_License_Key".
+     *
+     * Class My_EDD_License_Key
      */
     class My_EDD_License_Key extends FS_Client_License_Abstract_v2 {
         /**
@@ -248,14 +250,122 @@
         }
     }
 
-    $is_migration_debug = ( defined( 'WP_FS__MIGRATION_DEBUG' ) && true === WP_FS__MIGRATION_DEBUG );
-    $is_migration_off   = ( defined( 'WP_FS__MIGRATION_OFF' ) && true === WP_FS__MIGRATION_OFF );
+    if ( ! class_exists( 'FS_Client_Addon_Migration_Abstract_v2' ) ) {
+        require_once dirname( __FILE__ ) . '/class-fs-client-addon-migration-abstract.php';
+    }
 
-    if ( ! $is_migration_off ) {
+    /**
+     * @todo For add-ons migration change the if condition from `false` to `true` an update the class according to the inline instructions.
+     *       
+     * @author   Vova Feldman (@svovaf)
+     * @since    2.0.0
+     */
+    if ( false ) {
+        /**
+         * You should use your own unique CLASS name, and be sure to replace it
+         * throughout this file. For example, if your product's name is "Awesome Product"
+         * then you can rename it to "Awesome_Product_EDD_Addon_Migration".
+         *
+         * @author   Vova Feldman (@svovaf)
+         * @since    2.0.0
+         *
+         * Class My_EDD_Addon_Migration
+         */
+        class My_EDD_Addon_Migration extends FS_Client_Addon_Migration_Abstract_v2 {
+
+            #region Singleton
+
+            /**
+             * @var FS_Client_Addon_Migration_Abstract_v2[]
+             */
+            protected static $_INSTANCES = array();
+
+            /**
+             * @param string $parent_shortcode
+             *
+             * @return FS_Client_Addon_Migration_Abstract_v2
+             */
+            public function instance( $parent_shortcode ) {
+                if ( ! isset( self::$_INSTANCES[ $parent_shortcode ] ) ) {
+                    self::$_INSTANCES[ $parent_shortcode ] = new self( $parent_shortcode );
+                }
+
+                return self::$_INSTANCES[ $parent_shortcode ];
+            }
+
+            private function __construct( $parent_shortcode ) {
+                $this->_parent_shortcode = $parent_shortcode;
+            }
+
+            #endregion
+
+            /**
+             * @todo     Update the logic to identify if the parent product is running. If you are using namespaces, make sure to add the relevant namespace within the checks. For example, if your product's main class name is My_Class and the namespace of the file in which the class is defined is \my\namespace then you'll need to replace '<PARENT_MAIN_CLASS_NAME>' with '\my\namespace]\My_Class'.
+             *
+             * @author   Vova Feldman (@svovaf)
+             * @since    2.0.0
+             *
+             * @return bool
+             */
+            protected function is_parent_included() {
+                // If you are using classes, replace <PARENT_MAIN_CLASS_NAME> with your parent product main class name.
+                return class_exists( '<PARENT_MAIN_CLASS_NAME>' );
+
+                // If your parent defines a unique define, replace <PARENT_DEFINE> with its name.
+//            return defined( '<PARENT_DEFINE>' );
+
+                // If your parent defines a unique function, replace <PARENT_FUNCTION> with its name.
+//            return function_exists( '<PARENT_FUNCTION>' );
+            }
+
+            /**
+             * @todo     Set the array to represent the common config for all addons SDK init-s.
+             *
+             * @author   Vova Feldman (@svovaf)
+             * @since    2.0.0
+             *
+             * @return array
+             */
+            protected function get_addons_sdk_init_common_config() {
+                return array(
+                    'type'            => 'plugin',
+                    'is_premium'      => true,
+                    'is_premium_only' => true,
+                    'has_paid_plans'  => true,
+                    'parent'          => array(
+                        'id'         => '<PARENT_PRODUCT_ID>',
+                        'slug'       => '<PARENT_PRODUCT_SLUG>',
+                        'public_key' => '<PARENT_PRODUCT_PUBLIC_KEY>',
+                        'name'       => '<PARENT_PRODUCT_NAME>',
+                    ),
+                    'menu'            => array(
+                        'first-path' => 'plugins.php',
+                        'support'    => false,
+                    ),
+                );
+            }
+
+            /**
+             * @author   Vova Feldman (@svovaf)
+             * @since    2.0.0
+             *
+             * @param bool   $is_bundle
+             * @param string $addon_class
+             * @param string $addon_name
+             *
+             * @return FS_Client_License_Abstract_v2
+             */
+            protected function get_new_license_key_manager( $is_bundle, $addon_class = '', $addon_name = '' ) {
+                return new My_EDD_License_Key( $is_bundle, $addon_class, $addon_name );
+            }
+        }
+    }
+
+    $is_migration_debug = FS_Client_Addon_Migration_Abstract_v2::is_migration_debug();
+
+    if ( FS_Client_Addon_Migration_Abstract_v2::is_migration_on() ) {
         if ( ! $is_migration_debug ||
-             ( ( ! defined( 'DOING_AJAX' ) || true !== DOING_AJAX ) &&
-               ( ! defined( 'DOING_CRON' ) || true !== DOING_CRON )
-             )
+             ( ! FS_Client_Addon_Migration_Abstract_v2::is_wp_ajax() && ! FS_Client_Addon_Migration_Abstract_v2::is_wp_cron() )
         ) {
             /**
              * @todo When migrating a bundle, set this var to `true`.
