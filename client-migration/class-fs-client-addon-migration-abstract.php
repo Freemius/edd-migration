@@ -103,7 +103,7 @@
                         $this->_addon_fs,
 
                         // This should point to your EDD store root URL.
-                        '<HTTPS://YOUR-EDD-STORE.COM>',
+                        self::get_store_url(),
 
                         // The EDD download ID of your product.
                         $addon_edd_download_id,
@@ -152,6 +152,14 @@
          * @return FS_Client_License_Abstract_v2
          */
         abstract protected function get_new_license_key_manager( $is_bundle, $addon_class = '', $addon_name = '' );
+
+        /**
+         * @author   Vova Feldman (@svovaf)
+         * @since    2.0.0
+         *
+         * @return string
+         */
+        abstract protected function get_store_url();
 
         #region Helper Methods
 

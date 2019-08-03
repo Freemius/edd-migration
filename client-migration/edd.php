@@ -256,7 +256,7 @@
 
     /**
      * @todo For add-ons migration change the if condition from `false` to `true` an update the class according to the inline instructions.
-     *       
+     *
      * @author   Vova Feldman (@svovaf)
      * @since    2.0.0
      */
@@ -358,6 +358,18 @@
             protected function get_new_license_key_manager( $is_bundle, $addon_class = '', $addon_name = '' ) {
                 return new My_EDD_License_Key( $is_bundle, $addon_class, $addon_name );
             }
+
+            /**
+             * @todo This should point to your EDD store root URL.
+             *
+             * @author   Vova Feldman (@svovaf)
+             * @since    2.0.0
+             *
+             * @return string
+             */
+            protected function get_store_url() {
+                return '<HTTPS://YOUR-EDD-STORE.COM>';
+            }
         }
     }
 
@@ -385,7 +397,7 @@
                 // This should be replaced with your custom Freemius shortcode.
                     my_freemius(),
 
-                    // This should point to your EDD store root URL.
+                    // @todo This should point to your EDD store root URL.
                     '<HTTPS://YOUR-EDD-STORE.COM>',
 
                     // The bundle's download ID.
