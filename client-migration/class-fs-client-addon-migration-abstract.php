@@ -100,12 +100,12 @@
                         $this->_addon_fs,
 
                         // This should point to your EDD store root URL.
-                        self::get_store_url(),
+                        $this->get_store_url(),
 
                         // The EDD download ID of your product.
                         $addon_edd_download_id,
 
-                        self::get_new_license_key_manager( false, $addon_class, $addon_name ),
+                        $this->get_new_license_key_manager( false, $addon_class, $addon_name ),
 
                         // Migration type.
                         FS_Client_Migration_Abstract_v2::TYPE_PRODUCT_TO_PRODUCT,
