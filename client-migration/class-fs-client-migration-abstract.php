@@ -115,7 +115,7 @@
              */
             $this->_fs->add_filter( 'after_install_failure', array( &$this, 'try_migrate_on_activation' ), 10, 2 );
 
-            if ( $this->should_try_migrate() ) {
+            if ( $is_blocking || $this->should_try_migrate() ) {
                 if ( $this->has_any_keys() ) {
                     if ( ! defined( 'DOING_AJAX' ) ) {
                         $this->non_blocking_license_migration( $is_blocking );
@@ -215,7 +215,7 @@
                 ) {
                     $this->_license_accessor->activate_bundle_license_after_migration(
                         $fs_user,
-                        (self::TYPE_BUNDLE_TO_BUNDLE === $this->_migraiton_type) ?
+                        ( self::TYPE_BUNDLE_TO_BUNDLE === $this->_migraiton_type ) ?
                             null :
                             $response->data->license_key
                     );
@@ -227,28 +227,28 @@
                          * @author Vova Feldman
                          */
                         $this->_fs->activate_migrated_license( $response->data->license_key );
-                } else {
-                if ( $this->_license_accessor->is_network_migration() ) {
-                    $installs = array();
-                    foreach ( $response->data->installs as $install ) {
-                        $installs[] = new FS_Site( $install );
+                    } else {
+                        if ( $this->_license_accessor->is_network_migration() ) {
+                            $installs = array();
+                            foreach ( $response->data->installs as $install ) {
+                                $installs[] = new FS_Site( $install );
+                            }
+
+                            $this->_fs->setup_network_account(
+                                $fs_user,
+                                $installs,
+                                $redirect
+                            );
+                        } else {
+                            $this->_fs->setup_account(
+                                $fs_user,
+                                new FS_Site( $response->data->install ),
+                                $redirect
+                            );
+                        }
+
+                        $this->_fs->remove_sticky( 'plan_upgraded' );
                     }
-
-                    $this->_fs->setup_network_account(
-                            $fs_user,
-                        $installs,
-                        $redirect
-                    );
-                } else {
-                    $this->_fs->setup_account(
-                            $fs_user,
-                        new FS_Site( $response->data->install ),
-                        $redirect
-                    );
-                }
-
-                    $this->_fs->remove_sticky( 'plan_upgraded' );
-                }
                 }
 
                 if ( $this->_fs->is_addon() ) {
@@ -438,7 +438,7 @@
          */
         public function try_migrate_on_activation( $response, $args ) {
             if ( empty( $args['license_key'] ) ||
-                 $this->_fs->apply_filters('license_key_maxlength', 32) !== strlen( $args['license_key'] )
+                 $this->_fs->apply_filters( 'license_key_maxlength', 32 ) !== strlen( $args['license_key'] )
             ) {
                 // No license key provided (or invalid length), ignore.
                 return $response;
