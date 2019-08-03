@@ -3,7 +3,7 @@
      * Plugin Name: Freemius for EDD Migration
      * Plugin URI:  http://freemius.com/
      * Description: Server side endpoint to sync data between Freemius and EDD.
-     * Version:     1.0.0
+     * Version:     2.0.0
      * Author:      Freemius
      * Author URI:  http://freemius.com
      * License: GPL2
