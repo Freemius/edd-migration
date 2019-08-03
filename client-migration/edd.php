@@ -285,7 +285,7 @@
              *
              * @return FS_Client_Addon_Migration_Abstract_v2
              */
-            public function instance( $parent_shortcode ) {
+            public static function instance( $parent_shortcode ) {
                 if ( ! isset( self::$_INSTANCES[ $parent_shortcode ] ) ) {
                     self::$_INSTANCES[ $parent_shortcode ] = new self( $parent_shortcode );
                 }
