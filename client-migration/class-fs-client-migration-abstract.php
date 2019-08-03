@@ -263,7 +263,7 @@
                             false,
                             true,
                             $this->_license_accessor->is_network_migration() ?
-                                $parent_fs->$this->get_sites_for_network_level_optin() :
+                                $parent_fs->get_sites_for_network_level_optin() :
                                 array()
                         );
                     }
