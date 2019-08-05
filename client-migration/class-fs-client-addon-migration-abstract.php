@@ -69,10 +69,12 @@
 
             $migration_fun_name = "{$addon_shortcode}_try_migrate";
 
-            if ( did_action( "{$this->_parent_shortcode}_client_migration_loaded" ) ) {
-                call_user_func( $migration_fun_name );
-            } else {
-                add_action( "{$this->_parent_shortcode}_client_migration_loaded", $migration_fun_name );
+            if ( function_exists( $migration_fun_name ) ) {
+                if ( did_action( "{$this->_parent_shortcode}_client_migration_loaded" ) ) {
+                    call_user_func( $migration_fun_name );
+                } else {
+                    add_action( "{$this->_parent_shortcode}_client_migration_loaded", $migration_fun_name );
+                }
             }
         }
 
