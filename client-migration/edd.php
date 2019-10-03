@@ -281,23 +281,41 @@
             protected static $_INSTANCES = array();
 
             /**
-             * @param string $parent_shortcode
+             * @param string $addon_shortcode
              *
              * @return FS_Client_Addon_Migration_Abstract_v2
              */
-            public static function instance( $parent_shortcode ) {
-                if ( ! isset( self::$_INSTANCES[ $parent_shortcode ] ) ) {
-                    self::$_INSTANCES[ $parent_shortcode ] = new self( $parent_shortcode );
+            public static function instance( $addon_shortcode ) {
+                if ( ! isset( self::$_INSTANCES[ $addon_shortcode ] ) ) {
+                    self::$_INSTANCES[ $addon_shortcode ] = new self( $addon_shortcode );
                 }
 
-                return self::$_INSTANCES[ $parent_shortcode ];
+                return self::$_INSTANCES[ $addon_shortcode ];
             }
 
-            private function __construct( $parent_shortcode ) {
-                $this->_parent_shortcode = $parent_shortcode;
+            /**
+             * My_EDD_Addon_Migration constructor.
+             *
+             * @param string $addon_shortcode
+             */
+            private function __construct( $addon_shortcode ) {
+                $this->_addon_shortcode = $addon_shortcode;
             }
 
             #endregion
+
+            /**
+             * The parent product's shortcode.
+             *
+             * @author   Vova Feldman (@svovaf)
+             * @since    2.0.0
+             *
+             * @return string
+             */
+            protected function get_parent_shortcode() {
+                // @todo Replace with the shortcode set in the SDK INTEGRATION of the parent product Developer Dashboard.
+                return '<PARENT_PRODUCT_SHORTCODE>';
+            }
 
             /**
              * @todo     Update the logic to identify if the parent product is running. If you are using namespaces, make sure to add the relevant namespace within the checks. For example, if your product's main class name is My_Class and the namespace of the file in which the class is defined is \my\namespace then you'll need to replace '<PARENT_MAIN_CLASS_NAME>' with '\my\namespace]\My_Class'.

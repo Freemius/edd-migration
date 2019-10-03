@@ -20,7 +20,7 @@
         /**
          * @var string
          */
-        protected $_parent_shortcode;
+        protected $_addon_shortcode;
         /**
          * @var Freemius
          */
@@ -52,10 +52,8 @@
          *
          * @author   Vova Feldman (@svovaf)
          * @since    2.0.0
-         *
-         * @param string $addon_shortcode
          */
-        public function init( $addon_shortcode ) {
+        public function init() {
             if ( ! $this->is_parent_included() ) {
                 if ( is_admin() ) {
                     // Add error admin notice telling the add-on cannot work without the theme.
@@ -65,15 +63,17 @@
             }
 
             // Init Freemius.
-            call_user_func( $addon_shortcode );
+            call_user_func( $this->_addon_shortcode );
 
-            $migration_fun_name = "{$addon_shortcode}_try_migrate";
+            $migration_fun_name = "{$this->_addon_shortcode}_try_migrate";
 
             if ( function_exists( $migration_fun_name ) ) {
-                if ( did_action( "{$this->_parent_shortcode}_client_migration_loaded" ) ) {
+                $parent_shortcode = $this->get_parent_shortcode();
+
+                if ( did_action( "{$parent_shortcode}_client_migration_loaded" ) ) {
                     call_user_func( $migration_fun_name );
                 } else {
-                    add_action( "{$this->_parent_shortcode}_client_migration_loaded", $migration_fun_name );
+                    add_action( "{$parent_shortcode}_client_migration_loaded", $migration_fun_name );
                 }
             }
         }
@@ -82,7 +82,7 @@
          * @author   Vova Feldman (@svovaf)
          * @since    2.0.0
          *
-         * @param number $addon_edd_download_id
+         * @param string $addon_edd_download_id
          * @param string $addon_class
          * @param string $addon_name
          */
@@ -121,6 +121,16 @@
                 }
             }
         }
+
+        /**
+         * The parent product's shortcode.
+         *
+         * @author   Vova Feldman (@svovaf)
+         * @since    2.0.0
+         *
+         * @return string
+         */
+        abstract protected function get_parent_shortcode();
 
         /**
          * Check if add-on's parent product is running.
