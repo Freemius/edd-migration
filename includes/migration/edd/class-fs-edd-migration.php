@@ -878,6 +878,37 @@
         }
 
         /**
+         * Get subscription cancellation datetime string.
+         *
+         * @author Vova Feldman
+         * @since  1.0.0
+         *
+         * @return null|string
+         */
+        private function get_local_subscription_cancellation_date() {
+            $notes = $this->_edd_subscription->get_notes( 1000 );
+            if ( $notes ) {
+                foreach ( $notes as $key => $note ) {
+                    if ( false !== strpos( $note, 'Subscription' ) &&
+                         false !== strpos( $note, 'cancelled by' )
+                    ) {
+                        $canceled_at = substr( $note, strpos( $note, ' - ' ) );
+
+                        $canceled_at = date_create_from_format( 'F d, Y H:i:s', $canceled_at );
+
+                        if ( empty( $canceled_at ) ) {
+                            return null;
+                        }
+
+                        return date_format( $canceled_at, 'Y-m-d H:i:s' );
+                    }
+                }
+            }
+
+            return null;
+        }
+
+        /**
          * Get payment data for API.
          *
          * @author Vova Feldman
@@ -1329,9 +1360,14 @@
                 $subscription['is_sandbox'] = true;
             }
 
-            // @todo Enrich API to accept is_cancelled as an optional argument during migration.
             if ( 'cancelled' === $this->_edd_subscription->get_status() ) {
                 $subscription['is_cancelled'] = true;
+
+                $canceled_at = $this->get_local_subscription_cancellation_date();
+
+                if ( ! empty( $canceled_at ) ) {
+                    $subscription['canceled_at'] = $canceled_at;
+                }
             }
 
             $subscription = array_merge( $subscription, $this->get_purchase_vat_for_api() );
