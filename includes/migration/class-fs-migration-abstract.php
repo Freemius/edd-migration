@@ -857,7 +857,7 @@
                         }
 
                         throw new FS_Endpoint_Exception(
-                            'Freemius migration error: ' . $result->error->message,
+                            'Freemius migration error: ' . $result->error->message . ' API Result: ' . var_export( $result, true ),
                             $result->error->code,
                             $result->error->http
                         );
