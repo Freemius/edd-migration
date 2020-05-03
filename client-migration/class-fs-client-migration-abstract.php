@@ -21,6 +21,11 @@
         protected $_fs;
 
         /**
+         * @var \FS_Logger
+         */
+        protected $_logger;
+
+        /**
          * @var string Store URL.
          */
         protected $_store_url;
@@ -46,7 +51,7 @@
         protected $_license_accessor;
 
         /**
-         * @var bool
+         * @var string
          */
         protected $_migraiton_type;
 
@@ -54,6 +59,11 @@
          * @var bool
          */
         protected $_was_freemius_in_prev_version;
+
+        /**
+         * @var bool
+         */
+        protected $_is_blocking;
 
         /**
          * @var string Migration namespace.
@@ -72,6 +82,11 @@
          * A migration of a bundle's license from a product within the bundle. Since the migration is of a bundle's license, the resulting request will not generate any installs (bundle's don't have installs), so the activation of the bundle's license will be handled as a callback after the license migration.
          */
         const TYPE_BUNDLE_TO_BUNDLE = 'bundle';
+
+        /**
+         * @var FS_Client_Migration_Abstract_v2[]
+         */
+        protected static $instances;
 
         /**
          * @param string                        $namespace                    Migration namespace (e.g. EDD, WC)
@@ -100,7 +115,14 @@
             $this->_product_id                   = $product_id;
             $this->_license_accessor             = $license_accessor;
             $this->_migraiton_type               = $migration_type;
+            $this->_is_blocking                  = $is_blocking;
             $this->_was_freemius_in_prev_version = $was_freemius_in_prev_version;
+
+            $this->_logger = FS_Logger::get_logger(
+                WP_FS__SLUG . '_oceanwp_migration_' . $this->_fs->get_slug(),
+                WP_FS__DEBUG_SDK,
+                WP_FS__ECHO_DEBUG_SDK
+            );
 
             /**
              * If no license is set it might be one of the following:
@@ -115,6 +137,14 @@
              */
             $this->_fs->add_filter( 'after_install_failure', array( &$this, 'try_migrate_on_activation' ), 10, 2 );
 
+            if ( ! isset( self::$instances ) ) {
+                self::$instances = array();
+
+                add_action( 'admin_menu', array( 'FS_Client_Migration_Abstract_v2', 'add_migration_debug' ) );
+            }
+
+            self::$instances[] = $this;
+
             if ( $is_blocking || $this->should_try_migrate() ) {
                 if ( $this->has_any_keys() ) {
                     if ( ! defined( 'DOING_AJAX' ) ) {
@@ -123,6 +153,215 @@
                 }
             }
         }
+
+        #--------------------------------------------------------------------------------
+        #region Debugging
+        #--------------------------------------------------------------------------------
+
+        public static function add_migration_debug() {
+            $hook = FS_Admin_Menu_Manager::add_subpage(
+                null,
+                'Freemius Migration Debug',
+                'Freemius Migration Debug',
+                'manage_options',
+                'freemius-migration',
+                array( 'FS_Client_Migration_Abstract_v2', '_debug_page_render' )
+            );
+
+            if ( ! empty( $hook ) ) {
+                add_action( "load-$hook", array( 'FS_Client_Migration_Abstract_v2', '_debug_page_actions' ) );
+            }
+        }
+
+        public static function _debug_page_actions() {
+            Freemius::_clean_admin_content_section();
+
+            if ( fs_request_is_action( 'try_migrate' ) ) {
+                $module_id = fs_request_get( 'module_id' );
+
+                if ( FS_Plugin::is_valid_id( $module_id ) ) {
+                    check_admin_referer( "try_migrate_{$module_id}" );
+
+                    foreach ( self::$instances as $instance ) {
+                        if ( $module_id == $instance->_fs->get_id() ) {
+                            $instance->do_license_migration( false, true );
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+
+        /**
+         * Special migration debugging page rendering.
+         *
+         * @author   Vova Feldman (@svovaf)
+         * @since    2.0.0
+         */
+        public static function _debug_page_render() { ?>
+            <h1 style="margin-bottom: 25px;">Freemius Migration Debug</h1>
+            <?php
+            date_default_timezone_set( 'UTC' );
+
+            foreach ( self::$instances as $instance ) {
+                $can_start_migration_string = $instance->can_start_migration();
+                $can_start_migration        = ! is_string( $can_start_migration_string );
+                $can_start_migration_string = $can_start_migration ? 'Yes' : $can_start_migration_string;
+
+                $should_try_migrate = $instance->should_try_migrate();
+
+                $transient_key = "fsm_{$instance->_namespace}_{$instance->_product_id}";
+                $migration_uid = $instance->get_transient( $transient_key );
+
+                $last_migration_timestamp      = $instance->get_transient( "fs_license_migration_{$instance->_product_id}_timestamp" );
+                $last_migration_response       = $instance->get_transient( "fs_license_migration_{$instance->_product_id}_last_response" );
+                $last_migration_response_body  = $instance->get_transient( "fs_license_migration_{$instance->_product_id}_last_response_body" );
+
+                // force migration
+
+                $result       = $instance->get_site_migration_data_and_licenses();
+                $all_licenses = $result['licenses'];
+
+                $non_empty_licenses = array();
+                foreach ( $all_licenses as $license_key ) {
+                    if ( ! empty( $license_key ) ) {
+                        $non_empty_licenses[] = $license_key;
+                    }
+                }
+
+                $has_keys_to_migrate = ! empty( $non_empty_licenses );
+
+                $has_an_issue = (
+                    $has_keys_to_migrate &&
+                    ( ! $can_start_migration || ! $should_try_migrate )
+                );
+
+                $module_id = $instance->_fs->get_id();
+
+                $props = array(
+                    array(
+                        'key' => 'External ID',
+                        'val' => $instance->_product_id,
+                    ),
+                    array(
+                        'key' => 'Freemius ID',
+                        'val' => $module_id,
+                    ),
+                    array(
+                        'key' => 'Migration Type',
+                        'val' => strtoupper( $instance->_migraiton_type ),
+                    ),
+                    array(
+                        'key' => 'Store URL',
+                        'val' => $instance->_store_url,
+                    ),
+                    array(
+                        'key' => 'Is Blocking Migration',
+                        'val' => ( $instance->_is_blocking ? 'Yes' : 'No' ),
+                    ),
+                    array(
+                        'key'   => 'Should migrate?',
+                        'val'   => $should_try_migrate ? 'Yes' : 'No',
+                        'color' => $should_try_migrate ? 'green' : 'red',
+                    ),
+                    array(
+                        'key'   => 'Can migrate?',
+                        'val'   => $can_start_migration_string,
+                        'color' => $can_start_migration ? 'green' : 'red',
+                    ),
+                    array(
+                        'key' => 'Migrate if FS was in prev version',
+                        'val' => ( $instance->_was_freemius_in_prev_version ? 'Yes' : 'No' ),
+                    ),
+                    array(
+                        'key'   => 'Is in activation?',
+                        'val'   => ( $instance->_fs->is_activation_mode() ? 'Yes' : 'No' ),
+                        'color' => ( ! $instance->_was_freemius_in_prev_version && $instance->_fs->is_activation_mode() ? 'inherit' : 'red' ),
+                    ),
+                    array(
+                        'key'   => 'Is upgrade mode?',
+                        'val'   => ( $instance->_fs->is_plugin_upgrade_mode() ? 'Yes' : 'No' ),
+                        'color' => ( ! $instance->_was_freemius_in_prev_version && $instance->_fs->is_plugin_upgrade_mode() ? 'inherit' : 'red' ),
+                    ),
+                    array(
+                        'key'   => 'Is first version with Freemius?',
+                        'val'   => ( $instance->_fs->is_first_freemius_powered_version() ? 'Yes' : 'No' ),
+                        'color' => ( ! $instance->_was_freemius_in_prev_version && $instance->_fs->is_first_freemius_powered_version() ? 'inherit' : 'red' ),
+                    ),
+                    array(
+                        'key' => 'Migration UID',
+                        'val' => ( is_string( $migration_uid ) ? $migration_uid : '' ),
+                    ),
+                    array(
+                        'key' => 'Last Migration Execution',
+                        'val' => ( empty( $last_migration_timestamp ) ? '' : date( 'Y-m-d H:i:s', $last_migration_timestamp ) ),
+                    ),
+                    array(
+                        'key' => 'Last Migration Response',
+                        'val' => ( ! empty( $last_migration_response ) ? var_export( $last_migration_response, true ) : '' ),
+                    ),
+                    array(
+                        'key' => ' -> Response Body',
+                        'val' => ( ! empty( $last_migration_response_body ) ? $last_migration_response_body : '' ),
+                    ),
+                );
+                ?>
+                <div style="float: left; padding: 5px 10px 5px 10px;">
+                    <table class="widefat">
+                        <thead>
+                        <tr>
+                            <th colspan="2" style="position: relative">
+                                <h3 style="color: <?php echo $has_an_issue ? 'red' : 'green' ?>">
+                                    <span class="dashicons dashicons-<?php echo $has_an_issue ? 'warning' : 'yes-alt' ?>"></span><?php if ( $has_keys_to_migrate ) : ?>
+                                        <span class="dashicons dashicons-admin-network"></span><?php endif ?> <?php echo esc_html( $instance->_fs->get_plugin_title() ) ?>
+                                </h3>
+
+                                <form action="" method="POST" style="position: absolute; top: 20px; right: 20px;">
+                                    <input type="hidden" name="fs_action" value="try_migrate">
+                                    <input type="hidden" name="module_id" value="<?php echo $module_id ?>">
+                                    <?php wp_nonce_field( "try_migrate_{$module_id}" ) ?>
+                                    <button class="button button-primary"<?php disabled( ! $has_keys_to_migrate ) ?>>Try Migrate</button>
+                                </form>
+                            </th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <?php $alternate = false;
+                            foreach ( $props as $p ) : ?>
+                                <tr<?php if ( $alternate ) {
+                                    echo ' class="alternate"';
+                                } ?>>
+                                    <td style="width: 150px">
+                                        <nobr<?php if ( ! empty( $p['color'] ) )
+                                            echo ' style="color: ' . $p['color'] . '"' ?>><?php echo esc_html( $p['key'] ) ?></nobr>
+                                    </td>
+                                    <td><code><?php echo esc_html( $p['val'] ) ?></code></td>
+                                </tr>
+                                <?php $alternate = ! $alternate ?>
+                            <?php endforeach ?>
+                        <tr>
+                            <td<?php if ( empty( $non_empty_licenses ) )
+                                echo ' style="color: red;"' ?>>License Keys
+                            </td>
+                            <td>
+                                <?php if ( ! $has_keys_to_migrate ) : ?>
+                                    <code>No licenses to migrate</code>
+                                <?php else : ?>
+                                    <?php foreach ( $all_licenses as $license_key ) : ?>
+                                        <code style="display: block"><?php echo $license_key ?></code>
+                                    <?php endforeach ?>
+                                <?php endif ?>
+                            </td>
+                        </tr>
+                        </tbody>
+                    </table>
+                    <br>
+                </div>
+                <?php
+            }
+        }
+
+        #endregion
 
         /**
          * The license migration script.
@@ -134,21 +373,32 @@
          * @since    1.0.0
          *
          * @param bool $redirect
+         * @param bool $flush Since 2.0.0
          *
          * @return bool
          */
-        protected function do_license_migration( $redirect = false ) {
+        protected function do_license_migration( $redirect = false, $flush = false ) {
+            $this->_logger->entrance();
+
             $result = $this->get_site_migration_data_and_licenses();
 
             $migration_data = $result['data'];
             $all_licenses   = $result['licenses'];
 
             $transient_key = 'fs_license_migration_' . $this->_product_id . '_' . md5( implode( '', $all_licenses ) );
-            $response      = $this->get_transient_mixed( $transient_key );
+            $response      = $flush ? false : $this->get_transient_mixed( $transient_key );
 
-            if ( false === $response ) {
+            if ( false !== $response ) {
+                $this->_logger->info( 'Response already cached and fetched directly from the 15 min transient.');
+            } else {
+                $this->set_transient( "fs_license_migration_{$this->_product_id}_timestamp", WP_FS__SCRIPT_START_TIME, WP_FS__TIME_24_HOURS_IN_SEC * 30 );
+
+                $endpoint_url = $this->get_migration_endpoint();
+
+                $this->_logger->info( "Initiating a license migration call to {$endpoint_url}." );
+
                 $response = wp_remote_post(
-                    $this->get_migration_endpoint(),
+                    $endpoint_url,
                     array(
                         'timeout'   => 60,
                         'sslverify' => false,
@@ -160,24 +410,36 @@
                 $this->set_transient( $transient_key, $response, 15 * MINUTE_IN_SECONDS );
             }
 
+            $this->set_transient( "fs_license_migration_{$this->_product_id}_last_response", $response, WP_FS__TIME_24_HOURS_IN_SEC * 30 );
+
             $should_migrate_transient = $this->get_should_migrate_transient_key();
 
             // make sure the response came back okay
             if ( is_wp_error( $response ) || 200 !== wp_remote_retrieve_response_code( $response ) ) {
                 $error_message = $response->get_error_message();
 
+                $this->delete_transient( "fs_license_migration_{$this->_product_id}_last_response_body" );
+
+                $this->_logger->error( $error_message );
+
                 return ( is_wp_error( $response ) && ! empty( $error_message ) ) ?
                     $error_message :
                     __( 'An error occurred, please try again.' );
 
             } else {
-                $response = json_decode( wp_remote_retrieve_body( $response ) );
+                $response_body = wp_remote_retrieve_body( $response );
+
+                $this->set_transient( "fs_license_migration_{$this->_product_id}_last_response_body", $response_body, WP_FS__TIME_24_HOURS_IN_SEC * 30 );
+
+                $response = json_decode( $response_body );
 
                 if ( ! is_object( $response ) ||
                      ! isset( $response->success ) ||
                      true !== $response->success
                 ) {
                     if ( isset( $response->error ) ) {
+                        $this->_logger->error( $response->error->code . ': ' . $response->error->message );
+
                         switch ( $response->error->code ) {
                             case 'empty_license_key':
                             case 'invalid_license_key':
@@ -191,6 +453,7 @@
                         }
                     } else {
                         // Unexpected error.
+                        $this->_logger->error( 'Unexpected migration error.' );
                     }
 
                     // Failed to pull account information.
@@ -202,8 +465,12 @@
 
                 if ( $this->_was_freemius_in_prev_version && $this->_fs->is_registered() ) {
                     if ( $this->_license_accessor->is_network_migration() ) {
+                        $this->_logger->info( 'Deleting network account to apply the account of the migrated license.' );
+
                         $this->_fs->delete_network_account_event();
                     } else {
+                        $this->_logger->info( 'Deleting account to apply the account of the migrated license.' );
+
                         $this->_fs->delete_account_event();
                     }
                 }
@@ -211,8 +478,10 @@
                 $fs_user = new FS_User( $response->data->user );
 
                 if ( self::TYPE_BUNDLE_TO_BUNDLE === $this->_migraiton_type ||
-                     isset( $response->data->type ) && self::TYPE_BUNDLE_TO_BUNDLE === $response->data->type
+                     ( isset( $response->data->type ) && self::TYPE_BUNDLE_TO_BUNDLE === $response->data->type )
                 ) {
+                    $this->_logger->info( 'Activating bundle license after migration.' );
+
                     $this->_license_accessor->activate_bundle_license_after_migration(
                         $fs_user,
                         ( self::TYPE_BUNDLE_TO_BUNDLE === $this->_migraiton_type ) ?
@@ -226,6 +495,8 @@
                          *
                          * @author Vova Feldman
                          */
+                        $this->_logger->info( 'Activating migrated add-on license.' );
+
                         $this->_fs->activate_migrated_license( $response->data->license_key );
                     } else {
                         if ( $this->_license_accessor->is_network_migration() ) {
@@ -234,12 +505,16 @@
                                 $installs[] = new FS_Site( $install );
                             }
 
+                            $this->_logger->info( 'Setting up a network account after migration.' );
+
                             $this->_fs->setup_network_account(
                                 $fs_user,
                                 $installs,
                                 $redirect
                             );
                         } else {
+                            $this->_logger->info( 'Setting up an account after migration.' );
+
                             $this->_fs->setup_account(
                                 $fs_user,
                                 new FS_Site( $response->data->install ),
@@ -256,6 +531,9 @@
 
                     if ( ! $parent_fs->is_registered() && $parent_fs->has_free_plan() ) {
                         // Opt-in to the parent with the add-on's user.
+
+                        $this->_logger->info( 'Opting into the parent with the add-on\'s user.' );
+
                         $parent_fs->install_with_user(
                             $fs_user,
                             false,
@@ -271,6 +549,10 @@
 
                 // Upon successful migration, store the no-migration flag for 5 years.
                 $this->set_transient( $should_migrate_transient, 'no', WP_FS__TIME_24_HOURS_IN_SEC * 365 * 5 );
+
+                do_action( 'fs_after_client_migration', $this->_license_accessor );
+
+                $this->_logger->info( 'Migration completed successfully.' );
 
                 return true;
             }
@@ -358,40 +640,10 @@
          * @return string|bool
          */
         protected function non_blocking_license_migration( $is_blocking = false ) {
-            if ( ! $this->_fs->has_api_connectivity() ) {
-                // No connectivity to Freemius API, it's up to you what to do.
-                return 'no_connectivity';
-            }
+            $can_start_migration = $this->can_start_migration( $is_blocking );
 
-            if ( ! $this->_fs->is_premium() && self::TYPE_BUNDLE_TO_BUNDLE != $this->_migraiton_type ) {
-                // Running the free product version, so don't migrate.
-                return 'free_code_version';
-            }
-
-            if ( $this->_fs->is_registered() && $this->_fs->has_any_license( false ) ) {
-                // User already identified by the API and has a license.
-                return 'user_registered_with_license';
-            }
-
-            if ( ! $this->_was_freemius_in_prev_version ) {
-                if ( $this->_fs->is_registered() ) {
-                    // User already identified by the API.
-                    return 'user_registered';
-                }
-
-                if ( ! $this->_fs->is_activation_mode() ) {
-                    // Plugin isn't in Freemius activation mode.
-                    return 'not_in_activation';
-                }
-                if ( ! $this->_fs->is_plugin_upgrade_mode() ) {
-                    // Plugin isn't in plugin upgrade mode.
-                    return 'not_in_upgrade';
-                }
-
-                if ( ! $this->_fs->is_first_freemius_powered_version() ) {
-                    // It's not the 1st version of the plugin that runs with Freemius.
-                    return 'freemius_installed_before';
-                }
+            if ( is_string( $can_start_migration ) ) {
+                return $can_start_migration;
             }
 
             $key = "fsm_{$this->_namespace}_{$this->_product_id}";
@@ -419,6 +671,54 @@
             }
 
             return 'failed';
+        }
+
+        /**
+         * @author   Vova Feldman (@svovaf)
+         * @since    2.0.0
+         *
+         * @param bool $ignore_prev_version Ignore whether Freemius was already in prev versions of the product or not.
+         *
+         * @return bool|string
+         */
+        protected function can_start_migration( $ignore_prev_version = false ) {
+            if ( ! $this->_fs->has_api_connectivity() ) {
+                // No connectivity to Freemius API, it's up to you what to do.
+                return 'no_connectivity';
+            }
+
+            if ( ! $this->_fs->is_premium() && self::TYPE_BUNDLE_TO_BUNDLE != $this->_migraiton_type ) {
+                // Running the free product version, so don't migrate.
+                return 'free_code_version';
+            }
+
+            if ( $this->_fs->is_registered() && $this->_fs->has_any_license( false ) ) {
+                // User already identified by the API and has a license.
+                return 'user_registered_with_license';
+            }
+
+            if ( ! $ignore_prev_version && ! $this->_was_freemius_in_prev_version ) {
+                if ( $this->_fs->is_registered() ) {
+                    // User already identified by the API.
+                    return 'user_registered';
+                }
+
+                if ( ! $this->_fs->is_activation_mode() ) {
+                    // Plugin isn't in Freemius activation mode.
+                    return 'not_in_activation';
+                }
+                if ( ! $this->_fs->is_plugin_upgrade_mode() ) {
+                    // Plugin isn't in plugin upgrade mode.
+                    return 'not_in_upgrade';
+                }
+
+                if ( ! $this->_fs->is_first_freemius_powered_version() ) {
+                    // It's not the 1st version of the plugin that runs with Freemius.
+                    return 'freemius_installed_before';
+                }
+            }
+
+            return true;
         }
 
         /**
@@ -467,6 +767,15 @@
                      * override the response with the after connect URL.
                      */
                     return $this->_fs->get_after_activation_url( 'after_connect_url' );
+                } else {
+                    $result = $this->get_site_migration_data_and_licenses();
+
+                    $all_licenses   = $result['licenses'];
+
+                    $transient_key = 'fs_license_migration_' . $this->_product_id . '_' . md5( implode( '', $all_licenses ) );
+                    $response      = $this->get_transient( $transient_key );
+
+                    $response->error->message = 'Migration error: ' . var_export( $response, true );
                 }
             }
 
@@ -774,7 +1083,7 @@
          *
          * @return bool
          */
-        private function should_try_migrate() {
+        protected function should_try_migrate() {
             $key = $this->get_should_migrate_transient_key();
 
             $should_migrate = $this->get_transient_mixed( $key );

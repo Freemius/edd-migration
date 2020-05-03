@@ -10,10 +10,6 @@
         exit;
     }
 
-    if ( defined( 'DOING_CRON' ) ) {
-        return;
-    }
-
     if ( ! class_exists( 'FS_Client_License_Abstract_v2' ) ) {
         require_once dirname( __FILE__ ) . '/class-fs-client-license-abstract.php';
     }
@@ -38,6 +34,10 @@
          * @var string
          */
         private $_child_identifier;
+        /**
+         * @var FS_Logger
+         */
+        private $_logger;
 
         /**
          * @todo When migrating a store that sell bundles, set this array to include the child products identifiers as the keys, and the values should include the Freemius SDK shortcodes of those child products, correspondingly.
@@ -67,6 +67,12 @@
         function __construct( $is_bundle = false, $child_identifier = '', $child_name = '' ) {
             $this->_is_bundle        = $is_bundle;
             $this->_child_identifier = $child_identifier;
+
+            $this->_logger = FS_Logger::get_logger(
+                WP_FS__SLUG . '_<MY_PRODUCT_SLUG>_migration_' . ($is_bundle ? 'bundle' : $addon_class),
+                WP_FS__DEBUG_SDK,
+                WP_FS__ECHO_DEBUG_SDK
+            );
         }
 
         /**
@@ -187,6 +193,8 @@
          * @param string|null $bundle_license_key
          */
         public function activate_bundle_license_after_migration( FS_User $user, $bundle_license_key = null ) {
+            $this->_logger->entrance( "bundle_license_key=" . var_export( $bundle_license_key, true ) );
+
             if ( $this->_is_bundle || empty( $bundle_license_key ) ) {
                 $bundle_license_key = $this->get();
             }
@@ -194,12 +202,16 @@
             // Iterate over the installed add-ons and try to activate the bundle's license for each add-on.
             foreach ( self::$paid_children as $child_identifier => $data ) {
                 if ( ! $this->is_child_installed_and_active( $child_identifier ) ) {
+                    $this->_logger->log( "{$child_identifier} does not exist." );
+
                     continue;
                 }
 
                 $shortcode = $this->get_child_freemius_shortcode( $child_identifier );
 
                 if ( ! function_exists( $shortcode ) ) {
+                    $this->_logger->log( "Function {$shortcode} does not exist." );
+
                     continue;
                 }
 
@@ -209,6 +221,8 @@
                  * @var Freemius $child_fs
                  */
                 $child_fs = call_user_func( $shortcode );
+
+                $this->_logger->log( 'Starting activation of the migrated license for ' . str_replace( '_', ' ', $child_identifier) . '.' );
 
                 $child_fs->activate_migrated_license( $bundle_license_key );
             }
