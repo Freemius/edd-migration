@@ -61,7 +61,7 @@
          * @todo This constructor can be removed when migrating regular products (no bundles).
          *
          * @param bool   $is_bundle
-         * @param string $child_identifier
+         * @param string $child_identifier A unique identifier of a child product (you can use the child product's main class name).
          * @param string $child_name
          */
         function __construct( $is_bundle = false, $child_identifier = '', $child_name = '' ) {
@@ -69,7 +69,7 @@
             $this->_child_identifier = $child_identifier;
 
             $this->_logger = FS_Logger::get_logger(
-                WP_FS__SLUG . '_<MY_PRODUCT_SLUG>_migration_' . ($is_bundle ? 'bundle' : $addon_class),
+                WP_FS__SLUG . '_<MY_PRODUCT_SLUG>_migration_' . ($is_bundle ? 'bundle' : $child_identifier),
                 WP_FS__DEBUG_SDK,
                 WP_FS__ECHO_DEBUG_SDK
             );
