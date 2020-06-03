@@ -48,7 +48,7 @@
                     <th><?php _efs( 'Slug' ) ?></th>
                     <th><?php _efs( 'Local ID' ) ?></th>
                     <th><?php _efs( 'FS ID' ) ?></th>
-                    <th><?php _efs( 'FS Plan ID' ) ?></th>
+                    <th><?php _efs( 'FS Plan IDs' ) ?></th>
                     <th></th>
                 </tr>
                 </thead>
@@ -82,8 +82,8 @@
                         <?php if ( $is_synced ) : ?>
                             <td class="fs--module-id"><?php echo $module_id ?></td>
                             <td class="fs--paid-plan-id"><?php
-                                    $remote_plan_id = $endpoint->get_remote_paid_plan_id( $local_module->id );
-                                    echo ( false !== $remote_plan_id ) ? $remote_plan_id : '';
+                                    $remote_plan_ids = $endpoint->get_remote_paid_plan_ids( $local_module->id );
+                                    echo ( false !== $remote_plan_ids ) ? implode( ', ', $remote_plan_ids ) : '';
                                 ?></td>
                         <?php else : ?>
                             <td class="fs--module-id"></td>
@@ -110,21 +110,14 @@
                             </select>
                             <!--/ Product Selection -->
 
+                            <span v-show="loading.pricing">Loading pricing collection...</span>
                             <!-- Plan Selection -->
-                            <select v-model="plan" v-show="module" :disabled="loading.plans">
-                                <option disabled selected value="">{{ loading.plans ?
-                                    '<?php fs_esc_html_echo_inline( 'Loading plans' ) ?>' :
-                                    '<?php fs_esc_html_echo_inline( 'Select plan' ) ?>' }}...
-                                </option>
-                                <option v-for="p in plans" v-bind:value="p">{{ p.title }} ({{ p.id }} - {{ p.name }})
-                                </option>
-                            </select>
                             <!--/ Plan Selection -->
                         </div>
 
                         <!-- Pricing Mapping -->
-                        <div v-show="plan">
-                            <table style="width: 100%">
+                        <div v-show="module">
+                            <table v-if="pricing && ! loading.pricing" style="width: 100%">
                                 <tbody>
                                 <tr v-for="p in pricing.local">
                                     <td style="text-align: right"><label style="white-space:nowrap;">{{ p.name }} - ${{ p.price }} ({{ p.licenses }}
@@ -135,9 +128,16 @@
                                                 '<?php fs_esc_html_echo_inline( 'Loading pricing' ) ?>' :
                                                 '<?php fs_esc_html_echo_inline( 'Select pricing' ) ?>' }}...
                                             </option>
-                                            <option v-for="rp in pricing.remote" v-bind:value="rp">{{
-                                                rp.licenses == null ? 'Unlimited' : rp.licenses }}
-                                                licenses for ${{ rp.annual_price }} / year (ID = {{ rp.id }})
+                                            <option v-for="rp in pricing.remote" v-bind:value="rp.id">
+                                                {{ rp.plan_title + ' (' + rp.plan_id + ' - ' + rp.plan_name + ')' }}
+                                                {{ rp.licenses == null ? 'Unlimited' : rp.licenses }}-Site plan for
+                                                ${{
+                                                    rp.annual_price ?
+                                                        rp.annual_price + ' / year' :
+                                                        rp.lifetime_price ?
+                                                            rp.lifetime_price + ' one-time' :
+                                                            rp.monthly_price + ' / month'
+                                                }} (ID = {{ rp.id }})
                                             </option>
                                         </select>
                                     </td>
@@ -311,7 +311,7 @@
                             if (result.success) {
                                 $container.addClass('fs--synced');
                                 $moduleID.html(result.data.module_id);
-                                $paidPlanID.html(result.data.plan_id);
+                                $paidPlanID.html(result.data.plan_ids.join(', '));
 
                                 alert('<?php _e( 'W00t W00t! Module was successfully synced to Freemius. Refresh your Freemius Dashboard and you should be able to see all the data.', 'freemius' ) ?>');
                             } else {
@@ -335,17 +335,14 @@
                                 local : self.localModuleID,
                                 remote: self.module.id
                             },
-                            plan   : {
-//                                local: self.localModuleID,
-                                remote: self.plan.id
-                            },
                             pricing: []
                         };
 
                         for (var i = 0; i < pricing.length; i++) {
                             map.pricing.push({
-                                local : pricing[i].id,
-                                remote: pricing[i].remote.id
+                                local      : pricing[i].id,
+                                remote     : pricing[i].remote.id,
+                                remote_plan: pricing[i].remote.plan_id
                             });
                         }
 
@@ -362,7 +359,7 @@
 
                                 $container.addClass('fs--synced');
                                 $moduleID.html(result.module_id);
-                                $paidPlanID.html(result.plan_id);
+                                $paidPlanID.html(result.plan_ids.join(', '));
 
                                 self.unselectModule();
                             }
@@ -416,7 +413,7 @@
                             });
                         }
                     },
-                    plans  : function () {
+                    pricing  : function () {
                         var self = this;
 
                         if (self.loading.modules||
@@ -426,44 +423,14 @@
                             return [];
                         }
 
-                        self.loading.plans = true;
-                        self.plan = '';
-
-                        return Vue.http.get(ajaxurl, {
-                            params: {
-                                action   : 'fs_fetch_module_plans',
-                                module_id: self.module.id
-                                // _wpnonce: weDocs.nonce
-                            }
-                        }).then(function (result) {
-                            self.loading.plans = false;
-
-                            return result.body.data;
-                        }, function (error) {
-                            // handle error
-                        });
-                    },
-                    pricing: function () {
-                        var self = this;
-
-                        if (self.loading.plans ||
-                            !$.isPlainObject(self.plan) ||
-                            !$.isNumeric(self.plan.id)
-                        ) {
-                            return {
-                                local : [],
-                                remote: []
-                            };
-                        }
-
                         self.loading.pricing = true;
+                        self.pricing         = '';
 
                         return Vue.http.get(ajaxurl, {
                             params: {
                                 action         : 'fs_fetch_pricing',
                                 local_module_id: self.localModuleID,
-                                module_id      : self.module.id,
-                                plan_id        : self.plan.id
+                                module_id      : self.module.id
                             }
                         }).then(function (result) {
                             self.loading.pricing = false;
