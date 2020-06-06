@@ -435,15 +435,7 @@
                         }).then(function (result) {
                             self.loading.pricing = false;
 
-                            var pricing = result.body.data;
-
-                            if (pricing.local) {
-                                for (var i = 0; i < pricing.local.length; i++) {
-                                    pricing.local[i].remote = '';
-                                }
-                            }
-
-                            return pricing;
+                            return result.body.data;
                         }, function (error) {
                             // handle error
                         });
