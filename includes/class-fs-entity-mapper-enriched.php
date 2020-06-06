@@ -83,12 +83,11 @@
             );
         }
 
-
         /**
          * Get the corresponding Freemius pricing ID.
          *
          * @author Leo Fajardo
-         * @since  1.0.0
+         * @since  2.0.0.1
          *
          * @param string $local_pricing_id
          *
