@@ -424,7 +424,6 @@
                         }
 
                         self.loading.pricing = true;
-                        self.pricing         = '';
 
                         return Vue.http.get(ajaxurl, {
                             params: {

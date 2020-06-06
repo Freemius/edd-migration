@@ -1051,21 +1051,20 @@
             $module->id = $map['module']['remote'];
             $this->link_entity( $module, $local_module_id );
 
-            $fs_pricing  = new FS_Pricing();
+            $fs_plan    = new FS_Plan();
+            $fs_pricing = new FS_Pricing();
+
             foreach ( $map['pricing'] as $p ) {
                 if ( ! isset( $p['remote'] ) || ! isset( $p['remote_plan'] ) ) {
                     continue;
                 }
 
-                $fs_pricing->id = $p['remote'];
-
-                $fs_plan     = new FS_Plan();
-                $fs_plan->id = $p['remote_plan'];
-
                 // Link FS plan to local pricing.
+                $fs_plan->id = $p['remote_plan'];
                 $this->link_entity( $fs_plan, $p['local'] );
 
                 // Link FS pricing to local pricing.
+                $fs_pricing->id = $p['remote'];
                 $this->link_entity( $fs_pricing, $p['local'] );
             }
 
