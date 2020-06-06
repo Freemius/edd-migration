@@ -329,19 +329,12 @@
             $migration = FS_EDD_Migration::instance( $license_id );
             $migration->set_api( $this->get_api() );
 
-            if ( ! empty( $this->get_param( 'sites' ) ) ) {
-                // If multisite migration, create an unlimited license.
-                add_filter( 'edd_get_license_limit', '__return_zero' );
-            }
-
             // Migrate customer, purchase/subscription, billing and license.
             $customer = $migration->do_migrate_license();
 
             $parent_plugin_id = $this->get_param( 'parent_plugin_id' );
 
-            $is_type_bundle_or_all_access = $migration->is_local_type_bundle_or_all_access();
-
-            if ( is_numeric( $parent_plugin_id ) || $is_type_bundle_or_all_access ) {
+            if ( is_numeric( $parent_plugin_id ) || $migration->local_is_bundle() ) {
                 if ( ! is_object( $customer ) ) {
                     $result = $migration->fetch_user_from_freemius_by_id( $customer );
 
@@ -355,7 +348,7 @@
                 // When migrating a bundle's or an addon's license, do not create the installs, those will be created on the client's side by simply activating the license after it was already migrated.
                 return array(
                     'user'        => $customer,
-                    'type'        => $is_type_bundle_or_all_access ? 'bundle' : 'addon',
+                    'type'        => $migration->local_is_bundle() ? 'bundle' : 'addon',
                     /**
                      * Return the license key for cases when the migration was initiated by a product license key that is associated with a bundle or an add-on.
                      *

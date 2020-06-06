@@ -69,11 +69,6 @@
          */
         protected $_is_bundle;
 
-        /**
-         * @var bool
-         */
-        protected $_is_type_all_access;
-
         #endregion
 
         #--------------------------------------------------------------------------------
@@ -134,10 +129,6 @@
             $this->_edd_license = new EDD_SL_License( $license_id );
 
             $this->_is_bundle = ( 'bundle' === edd_get_download_type( $download_id ) );
-
-            $this->_is_type_all_access = get_post_meta( $download_id, '_edd_all_access_enabled', true ) ?
-                true :
-                false;
 
             $last_license_payments = edd_get_payments( array(
                 'post__in' => $this->_edd_license->payment_ids,
@@ -582,18 +573,6 @@
          */
         public function local_is_bundle() {
             return $this->_is_bundle;
-        }
-
-        /**
-         * Checks if migrating a license that is associated with a bundle.
-         *
-         * @author Vova Feldman
-         * @since  2.0.0
-         *
-         * @return bool
-         */
-        public function is_local_type_bundle_or_all_access() {
-            return ( $this->_is_bundle || $this->_is_type_all_access );
         }
 
         #endregion
