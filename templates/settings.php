@@ -272,6 +272,10 @@
                 },
 
                 methods: {
+                    /**
+                     * @author Leo Fajardo
+                     * @since 2.0.0.1
+                     */
                     selectRemoteModule: function() {
                         if ( ! this.modules ) {
                             return;

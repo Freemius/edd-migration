@@ -174,7 +174,7 @@
          *
          * @param string $local_module_id
          *
-         * @return false|number
+         * @return number[]
          */
         function get_remote_paid_plan_ids( $local_module_id ) {
             $local_price_ids = array();
@@ -1174,6 +1174,12 @@
             foreach ( $local_prices as &$local_price ) {
                 $fs_pricing_id = $this->_entity_mapper->get_remote_pricing_id( $local_price['id'] );
 
+                /**
+                 * Set this property so that the remote pricing will be automatically selected on the pricing collection section.
+                 *
+                 * @author Leo Fajardo
+                 * @since 2.0.0.1
+                 */
                 $local_price['remote'] = ( ! empty( $fs_pricing_id ) ) ?
                     $id_2_pricing[ $fs_pricing_id ] :
                     '';
