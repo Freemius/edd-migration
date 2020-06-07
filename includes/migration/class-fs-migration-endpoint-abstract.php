@@ -1178,7 +1178,7 @@
                  * Set this property so that the remote pricing will be automatically selected on the pricing collection section.
                  *
                  * @author Leo Fajardo
-                 * @since 2.0.0.1
+                 * @since 2.0.1
                  */
                 $local_price['remote'] = ( ! empty( $fs_pricing_id ) ) ?
                     $id_2_pricing[ $fs_pricing_id ] :

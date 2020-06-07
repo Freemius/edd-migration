@@ -279,7 +279,7 @@
                 methods: {
                     /**
                      * @author Leo Fajardo
-                     * @since 2.0.0.1
+                     * @since 2.0.1
                      *
                      * @returns {String}
                      */
@@ -288,7 +288,7 @@
                     },
                     /**
                      * @author Leo Fajardo
-                     * @since 2.0.0.1
+                     * @since 2.0.1
                      */
                     selectRemoteModule: function() {
                         if ( ! this.modules ) {
