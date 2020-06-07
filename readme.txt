@@ -25,6 +25,7 @@ Lazy migration of EDD licenses to Freemius.
 = 2.0.1 - 2020-06-08 =
 * Update: Added support for multi-plan mapping for a single download.
 * Update: Added support for downloads that use the "All Access" mechanism via the EDD All Access plugin.
+* Fix: Fixed an issue with bundle license activation.
 
 = 1.0.0 =
 * Initial release
