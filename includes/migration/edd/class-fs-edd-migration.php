@@ -128,7 +128,10 @@
 
             $this->_edd_license = new EDD_SL_License( $license_id );
 
-            $this->_is_bundle = ( 'bundle' === edd_get_download_type( $download_id ) );
+            $this->_is_bundle = (
+                'bundle' === edd_get_download_type( $download_id ) ||
+                get_post_meta( $download_id, '_edd_all_access_enabled', true )
+            );
 
             $last_license_payments = edd_get_payments( array(
                 'post__in' => $this->_edd_license->payment_ids,
