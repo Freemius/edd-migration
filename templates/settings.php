@@ -129,7 +129,7 @@
                                             <option v-for="rp in pricing.remote" v-bind:value="rp">
                                                 {{ rp.plan_title + ' (' + rp.plan_id + ' - ' + rp.plan_name + ')' }}
                                                 {{ rp.licenses == null ? 'Unlimited' : rp.licenses }}-Site plan for
-                                                ${{
+                                                {{ currencySymbol( rp.currency ) }}{{
                                                     rp.annual_price ?
                                                         rp.annual_price + ' / year' :
                                                         rp.lifetime_price ?
@@ -252,6 +252,11 @@
             new Vue({
                 el  : '#fs_settings',
                 data: {
+                    CURRENCY: {
+                        USD: '$',
+                        GBP: '£',
+                        EUR: '€',
+                    },
                     loading        : {
                         modules: false,
                         plans  : false,
@@ -272,6 +277,15 @@
                 },
 
                 methods: {
+                    /**
+                     * @author Leo Fajardo
+                     * @since 2.0.0.1
+                     *
+                     * @returns {String}
+                     */
+                    currencySymbol: function( currency ) {
+                        return this.CURRENCY[ currency.toUpperCase() ];
+                    },
                     /**
                      * @author Leo Fajardo
                      * @since 2.0.0.1
