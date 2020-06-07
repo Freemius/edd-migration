@@ -482,6 +482,11 @@
                 ) {
                     $this->_logger->info( 'Activating bundle license after migration.' );
 
+                    // Activate the license for the core product if it has a paid plan.
+                    if ( $this->_fs->has_paid_plan() ) {
+                        $this->_fs->activate_migrated_license( $response->data->license_key );
+                    }
+
                     $this->_license_accessor->activate_bundle_license_after_migration(
                         $fs_user,
                         ( self::TYPE_BUNDLE_TO_BUNDLE === $this->_migraiton_type ) ?

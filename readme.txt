@@ -2,8 +2,8 @@
 Contributors: freemius
 Tags: freemius, fs, easy digital downloads, edd, bridge, adapter, add-on, plugins
 Requires at least: 3.9
-Tested up to: 4.6
-Stable Tag: 1.0
+Tested up to: 5.4
+Stable Tag: 2.0.1
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -22,6 +22,8 @@ Lazy migration of EDD licenses to Freemius.
 
 == Changelog ==
 
-= 1.0.0 =
+= 2.0.1 - 2020-06-08 =
+* Fix: Fixed an issue with bundle license activation.
 
+= 1.0.0 =
 * Initial release
