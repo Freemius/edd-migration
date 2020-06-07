@@ -48,7 +48,7 @@
                     <th><?php _efs( 'Slug' ) ?></th>
                     <th><?php _efs( 'Local ID' ) ?></th>
                     <th><?php _efs( 'FS ID' ) ?></th>
-                    <th><?php _efs( 'FS Plan ID' ) ?></th>
+                    <th><?php _efs( 'FS Plan IDs' ) ?></th>
                     <th></th>
                 </tr>
                 </thead>
@@ -82,8 +82,8 @@
                         <?php if ( $is_synced ) : ?>
                             <td class="fs--module-id"><?php echo $module_id ?></td>
                             <td class="fs--paid-plan-id"><?php
-                                    $remote_plan_id = $endpoint->get_remote_paid_plan_id( $local_module->id );
-                                    echo ( false !== $remote_plan_id ) ? $remote_plan_id : '';
+                                    $remote_plan_ids = $endpoint->get_remote_paid_plan_ids( $local_module->id );
+                                    echo ( false !== $remote_plan_ids ) ? implode( ', ', $remote_plan_ids ) : '';
                                 ?></td>
                         <?php else : ?>
                             <td class="fs--module-id"></td>
@@ -110,20 +110,11 @@
                             </select>
                             <!--/ Product Selection -->
 
-                            <!-- Plan Selection -->
-                            <select v-model="plan" v-show="module" :disabled="loading.plans">
-                                <option disabled selected value="">{{ loading.plans ?
-                                    '<?php fs_esc_html_echo_inline( 'Loading plans' ) ?>' :
-                                    '<?php fs_esc_html_echo_inline( 'Select plan' ) ?>' }}...
-                                </option>
-                                <option v-for="p in plans" v-bind:value="p">{{ p.title }} ({{ p.id }} - {{ p.name }})
-                                </option>
-                            </select>
-                            <!--/ Plan Selection -->
+                            <span v-show="loading.pricing">Loading pricing collection...</span>
                         </div>
 
                         <!-- Pricing Mapping -->
-                        <div v-show="plan">
+                        <div v-if="pricing && ! loading.pricing">
                             <table style="width: 100%">
                                 <tbody>
                                 <tr v-for="p in pricing.local">
@@ -135,9 +126,16 @@
                                                 '<?php fs_esc_html_echo_inline( 'Loading pricing' ) ?>' :
                                                 '<?php fs_esc_html_echo_inline( 'Select pricing' ) ?>' }}...
                                             </option>
-                                            <option v-for="rp in pricing.remote" v-bind:value="rp">{{
-                                                rp.licenses == null ? 'Unlimited' : rp.licenses }}
-                                                licenses for ${{ rp.annual_price }} / year (ID = {{ rp.id }})
+                                            <option v-for="rp in pricing.remote" v-bind:value="rp">
+                                                {{ rp.plan_title + ' (' + rp.plan_id + ' - ' + rp.plan_name + ')' }}
+                                                {{ rp.licenses == null ? 'Unlimited' : rp.licenses }}-Site plan for
+                                                {{ currencySymbol( rp.currency ) }}{{
+                                                    rp.annual_price ?
+                                                        rp.annual_price + ' / year' :
+                                                        rp.lifetime_price ?
+                                                            rp.lifetime_price + ' one-time' :
+                                                            rp.monthly_price + ' / month'
+                                                }} (ID = {{ rp.id }})
                                             </option>
                                         </select>
                                     </td>
@@ -254,6 +252,11 @@
             new Vue({
                 el  : '#fs_settings',
                 data: {
+                    CURRENCY: {
+                        USD: '$',
+                        GBP: '£',
+                        EUR: '€',
+                    },
                     loading        : {
                         modules: false,
                         plans  : false,
@@ -274,17 +277,60 @@
                 },
 
                 methods: {
-                    selectModule   : function (localModuleID, event) {
+                    /**
+                     * @author Leo Fajardo
+                     * @since 2.0.1
+                     *
+                     * @returns {String}
+                     */
+                    currencySymbol: function( currency ) {
+                        return this.CURRENCY[ currency.toUpperCase() ];
+                    },
+                    /**
+                     * @author Leo Fajardo
+                     * @since 2.0.1
+                     */
+                    selectRemoteModule: function() {
+                        if ( ! this.modules ) {
+                            return;
+                        }
+
+                        var $container = $( '#fs_modules tr[data-local-module-id="' + this.localModuleID + '"]' );
+
+                        if ( 0 === $container.length ) {
+                            return;
+                        }
+
+                        var moduleID = $container.find( '.fs--module-id' ).text().trim();
+
+                        if ( ! $.isNumeric( moduleID ) ) {
+                            return;
+                        }
+
+                        for ( var i = 0; i < this.modules.length; i ++ ) {
+                            var module = this.modules[ i ];
+
+                            if ( moduleID == module.id ) {
+                                this.module = module;
+                                break;
+                            }
+                        }
+                    },
+                    selectModule      : function (localModuleID, event) {
                         this.localModuleID = localModuleID;
+                        this.module        = '';
 
                         var $container = $(event.target).parents('tr');
 
                         $container.after($('#fs_manual_mapping'));
+
+                        this.selectRemoteModule();
                     },
-                    unselectModule : function () {
+                    unselectModule    : function () {
                         this.localModuleID = null;
+                        this.module        = '';
                     },
-                    autoSyncProduct: function (localModuleID, event) {
+                    autoSyncProduct   : function (localModuleID, event) {
                         var $this       = $(event.target),
                             $container  = $this.parents('tr'),
                             $moduleID   = $container.find('.fs--module-id'),
@@ -311,7 +357,7 @@
                             if (result.success) {
                                 $container.addClass('fs--synced');
                                 $moduleID.html(result.data.module_id);
-                                $paidPlanID.html(result.data.plan_id);
+                                $paidPlanID.html(result.data.plan_ids.join(', '));
 
                                 alert('<?php _e( 'W00t W00t! Module was successfully synced to Freemius. Refresh your Freemius Dashboard and you should be able to see all the data.', 'freemius' ) ?>');
                             } else {
@@ -326,7 +372,7 @@
 
                         return false;
                     },
-                    saveMapping    : function () {
+                    saveMapping       : function () {
                         var self    = this,
                             pricing = self.pricing.local;
 
@@ -335,17 +381,14 @@
                                 local : self.localModuleID,
                                 remote: self.module.id
                             },
-                            plan   : {
-//                                local: self.localModuleID,
-                                remote: self.plan.id
-                            },
                             pricing: []
                         };
 
                         for (var i = 0; i < pricing.length; i++) {
                             map.pricing.push({
-                                local : pricing[i].id,
-                                remote: pricing[i].remote.id
+                                local      : pricing[i].id,
+                                remote     : pricing[i].remote.id,
+                                remote_plan: pricing[i].remote.plan_id
                             });
                         }
 
@@ -362,13 +405,15 @@
 
                                 $container.addClass('fs--synced');
                                 $moduleID.html(result.module_id);
-                                $paidPlanID.html(result.plan_id);
+                                $paidPlanID.html(result.plan_ids.join(', '));
 
                                 self.unselectModule();
                             }
                         });
                     },
-                    clearAllMapping: function (event) {
+                    clearAllMapping   : function (event) {
+                        var self = this;
+
                         if (confirm("<?php _e( 'Are you sure you\'d like to clear all mapping data?', 'freemius' ) ?>")) {
                             wp.ajax.send({
                                 data   : {
@@ -383,6 +428,8 @@
                                         $this.find('.fs--paid-plan-id').html('');
                                         $this.find('.button').removeClass('button-primary').html('<?php __fs( 'Sync to Freemius', 'freemius' ) ?>')
                                     });
+
+                                    self.localModuleID = null;
 
                                     alert('<?php _e( 'All mapping data was successfully deleted.', 'freemius' ) ?>');
                                 },
@@ -410,13 +457,18 @@
                             }).then(function (result) {
                                 self.loading.modules = false;
 
+                                // Auto-select the remote module after the modules collection is loaded.
+                                setTimeout( function() {
+                                    self.selectRemoteModule();
+                                } );
+
                                 return result.body.data;
                             }, function (error) {
                                 // handle error
                             });
                         }
                     },
-                    plans  : function () {
+                    pricing  : function () {
                         var self = this;
 
                         if (self.loading.modules||
@@ -426,57 +478,18 @@
                             return [];
                         }
 
-                        self.loading.plans = true;
-                        self.plan = '';
-
-                        return Vue.http.get(ajaxurl, {
-                            params: {
-                                action   : 'fs_fetch_module_plans',
-                                module_id: self.module.id
-                                // _wpnonce: weDocs.nonce
-                            }
-                        }).then(function (result) {
-                            self.loading.plans = false;
-
-                            return result.body.data;
-                        }, function (error) {
-                            // handle error
-                        });
-                    },
-                    pricing: function () {
-                        var self = this;
-
-                        if (self.loading.plans ||
-                            !$.isPlainObject(self.plan) ||
-                            !$.isNumeric(self.plan.id)
-                        ) {
-                            return {
-                                local : [],
-                                remote: []
-                            };
-                        }
-
                         self.loading.pricing = true;
 
                         return Vue.http.get(ajaxurl, {
                             params: {
                                 action         : 'fs_fetch_pricing',
                                 local_module_id: self.localModuleID,
-                                module_id      : self.module.id,
-                                plan_id        : self.plan.id
+                                module_id      : self.module.id
                             }
                         }).then(function (result) {
                             self.loading.pricing = false;
 
-                            var pricing = result.body.data;
-
-                            if (pricing.local) {
-                                for (var i = 0; i < pricing.local.length; i++) {
-                                    pricing.local[i].remote = '';
-                                }
-                            }
-
-                            return pricing;
+                            return result.body.data;
                         }, function (error) {
                             // handle error
                         });
