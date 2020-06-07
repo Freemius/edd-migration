@@ -601,6 +601,10 @@
 
             #endregion
 
+            if ( method_exists( $this->_fs, 'starting_migration' ) ) {
+                $this->_fs->starting_migration();
+            }
+
             $migration_url = add_query_arg(
                 "fsm_{$this->_namespace}_{$this->_product_id}",
                 $migration_uid,

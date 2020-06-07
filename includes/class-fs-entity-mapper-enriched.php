@@ -84,6 +84,23 @@
         }
 
         /**
+         * Get the corresponding Freemius pricing ID.
+         *
+         * @author Leo Fajardo
+         * @since  2.0.1
+         *
+         * @param string $local_pricing_id
+         *
+         * @return false|number
+         */
+        function get_remote_pricing_id( $local_pricing_id ) {
+            return $this->get_remote_id(
+                FS_Pricing::get_type(),
+                $local_pricing_id
+            );
+        }
+
+        /**
          * Get the corresponding Freemius subscription ID.
          *
          * @author Vova Feldman
