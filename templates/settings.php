@@ -281,13 +281,13 @@
                             return;
                         }
 
-                        var $container = $( '#fs_modules tr[data-local-module-id="' + this.localModuleID + '"]');
+                        var $container = $( '#fs_modules tr[data-local-module-id="' + this.localModuleID + '"]' );
 
                         if ( 0 === $container.length ) {
                             return;
                         }
 
-                        var moduleID = $container.find('.fs--module-id').text().trim();
+                        var moduleID = $container.find( '.fs--module-id' ).text().trim();
 
                         if ( ! $.isNumeric( moduleID ) ) {
                             return;
