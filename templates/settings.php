@@ -111,13 +111,11 @@
                             <!--/ Product Selection -->
 
                             <span v-show="loading.pricing">Loading pricing collection...</span>
-                            <!-- Plan Selection -->
-                            <!--/ Plan Selection -->
                         </div>
 
                         <!-- Pricing Mapping -->
-                        <div v-show="module">
-                            <table v-if="pricing && ! loading.pricing" style="width: 100%">
+                        <div v-if="pricing && ! loading.pricing">
+                            <table style="width: 100%">
                                 <tbody>
                                 <tr v-for="p in pricing.local">
                                     <td style="text-align: right"><label style="white-space:nowrap;">{{ p.name }} - ${{ p.price }} ({{ p.licenses }}
@@ -128,7 +126,7 @@
                                                 '<?php fs_esc_html_echo_inline( 'Loading pricing' ) ?>' :
                                                 '<?php fs_esc_html_echo_inline( 'Select pricing' ) ?>' }}...
                                             </option>
-                                            <option v-for="rp in pricing.remote" v-bind:value="rp.id">
+                                            <option v-for="rp in pricing.remote" v-bind:value="rp">
                                                 {{ rp.plan_title + ' (' + rp.plan_id + ' - ' + rp.plan_name + ')' }}
                                                 {{ rp.licenses == null ? 'Unlimited' : rp.licenses }}-Site plan for
                                                 ${{
