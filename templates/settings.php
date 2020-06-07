@@ -272,17 +272,47 @@
                 },
 
                 methods: {
-                    selectModule   : function (localModuleID, event) {
+                    selectRemoteModule: function() {
+                        if ( ! this.modules ) {
+                            return;
+                        }
+
+                        var $container = $( '#fs_modules tr[data-local-module-id="' + this.localModuleID + '"]');
+
+                        if ( 0 === $container.length ) {
+                            return;
+                        }
+
+                        var moduleID = $container.find('.fs--module-id').text().trim();
+
+                        if ( ! $.isNumeric( moduleID ) ) {
+                            return;
+                        }
+
+                        for ( var i = 0; i < this.modules.length; i ++ ) {
+                            var module = this.modules[ i ];
+
+                            if ( moduleID == module.id ) {
+                                this.module = module;
+                                break;
+                            }
+                        }
+                    },
+                    selectModule      : function (localModuleID, event) {
                         this.localModuleID = localModuleID;
+                        this.module        = '';
 
                         var $container = $(event.target).parents('tr');
 
                         $container.after($('#fs_manual_mapping'));
+
+                        this.selectRemoteModule();
                     },
-                    unselectModule : function () {
+                    unselectModule    : function () {
                         this.localModuleID = null;
+                        this.module        = '';
                     },
-                    autoSyncProduct: function (localModuleID, event) {
+                    autoSyncProduct   : function (localModuleID, event) {
                         var $this       = $(event.target),
                             $container  = $this.parents('tr'),
                             $moduleID   = $container.find('.fs--module-id'),
@@ -324,7 +354,7 @@
 
                         return false;
                     },
-                    saveMapping    : function () {
+                    saveMapping       : function () {
                         var self    = this,
                             pricing = self.pricing.local;
 
@@ -363,7 +393,9 @@
                             }
                         });
                     },
-                    clearAllMapping: function (event) {
+                    clearAllMapping   : function (event) {
+                        var self = this;
+
                         if (confirm("<?php _e( 'Are you sure you\'d like to clear all mapping data?', 'freemius' ) ?>")) {
                             wp.ajax.send({
                                 data   : {
@@ -378,6 +410,8 @@
                                         $this.find('.fs--paid-plan-id').html('');
                                         $this.find('.button').removeClass('button-primary').html('<?php __fs( 'Sync to Freemius', 'freemius' ) ?>')
                                     });
+
+                                    self.localModuleID = null;
 
                                     alert('<?php _e( 'All mapping data was successfully deleted.', 'freemius' ) ?>');
                                 },
@@ -404,6 +438,11 @@
                                 }
                             }).then(function (result) {
                                 self.loading.modules = false;
+
+                                // Auto-select the remote module after the modules collection is loaded.
+                                setTimeout( function() {
+                                    self.selectRemoteModule();
+                                } );
 
                                 return result.body.data;
                             }, function (error) {

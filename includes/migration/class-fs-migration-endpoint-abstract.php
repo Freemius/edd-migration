@@ -1176,7 +1176,7 @@
 
                 $local_price['remote'] = ( ! empty( $fs_pricing_id ) ) ?
                     $id_2_pricing[ $fs_pricing_id ] :
-                    array();
+                    '';
             }
 
             $this->shoot_json_success( array(
