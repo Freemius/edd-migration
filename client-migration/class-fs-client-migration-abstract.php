@@ -10,6 +10,10 @@
         exit;
     }
 
+    if ( ! defined( 'FS_SDK__SSLVERIFY' ) ) {
+        define( 'FS_SDK__SSLVERIFY', false );
+    }
+
     if ( class_exists( 'FS_Client_Migration_Abstract_v2' ) ) {
         return;
     }
@@ -401,7 +405,7 @@
                     $endpoint_url,
                     array(
                         'timeout'   => 60,
-                        'sslverify' => false,
+                        'sslverify' => FS_SDK__SSLVERIFY,
                         'body'      => json_encode( $migration_data ),
                     )
                 );
@@ -625,7 +629,7 @@
                 array(
                     'timeout'   => 0.01,
                     'blocking'  => false,
-                    'sslverify' => false,
+                    'sslverify' => FS_SDK__SSLVERIFY,
                     'cookies'   => $cookies,
                 )
             );
