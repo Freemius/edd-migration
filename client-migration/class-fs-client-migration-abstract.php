@@ -309,6 +309,16 @@
                         'val' => ( ! empty( $last_migration_response_body ) ? $last_migration_response_body : '' ),
                     ),
                 );
+
+                $last_migration_error = $instance->get_last_migration_error();
+
+                if ( ! empty( $last_migration_error ) ) {
+                    $props[] = array(
+                        'key'   => 'Last Migration Error',
+                        'val'   => $last_migration_error,
+                        'color' => 'red',
+                    );
+                }
                 ?>
                 <div style="float: left; padding: 5px 10px 5px 10px;">
                     <table class="widefat">
@@ -414,22 +424,31 @@
                 $this->set_transient( $transient_key, $response, 15 * MINUTE_IN_SECONDS );
             }
 
-            $this->set_transient( "fs_license_migration_{$this->_product_id}_last_response", $response, WP_FS__TIME_24_HOURS_IN_SEC * 30 );
-
             $should_migrate_transient = $this->get_should_migrate_transient_key();
 
+            $is_response_wp_error = is_wp_error( $response );
+
             // make sure the response came back okay
-            if ( is_wp_error( $response ) || 200 !== wp_remote_retrieve_response_code( $response ) ) {
-                $error_message = $response->get_error_message();
+            if ( $is_response_wp_error || 200 !== wp_remote_retrieve_response_code( $response ) ) {
+                if ( $is_response_wp_error ) {
+                    $error_message = $response->get_error_message();
+                } else if (
+                    ( is_array( $response['headers'] ) || $response['headers'] instanceof ArrayAccess ) &&
+                    ! empty( $response['headers']['server'] ) &&
+                    ( 'cloudflare' === $response['headers']['server'] ) &&
+                    ! empty( $response['headers']['cf-mitigated'] ) &&
+                    ! empty( $response['headers']['cf-ray'] )
+                ) {
+                    $error_message = __( sprintf( "Blocked by Cloudflare (Ray ID: %s).", $response['headers']['cf-ray'] ) );
+                } else {
+                    $error_message = __( 'An error has occurred, please try again.' );
+                }
 
                 $this->delete_transient( "fs_license_migration_{$this->_product_id}_last_response_body" );
 
-                $this->_logger->error( $error_message );
+                $this->store_last_migration_error( $error_message );
 
-                return ( is_wp_error( $response ) && ! empty( $error_message ) ) ?
-                    $error_message :
-                    __( 'An error occurred, please try again.' );
-
+                return $error_message;
             } else {
                 $response_body = wp_remote_retrieve_body( $response );
 
@@ -442,7 +461,7 @@
                      true !== $response->success
                 ) {
                     if ( isset( $response->error ) ) {
-                        $this->_logger->error( $response->error->code . ': ' . $response->error->message );
+                        $error_message = __( sprintf( "A migration error has occurred: %s (code: %s).", $response->error->message, $response->error->code ) );
 
                         switch ( $response->error->code ) {
                             case 'empty_license_key':
@@ -457,12 +476,18 @@
                         }
                     } else {
                         // Unexpected error.
-                        $this->_logger->error( 'Unexpected migration error.' );
+                        $error_message = __( 'Unexpected migration error.' );
                     }
 
+                    $this->_logger->error( $error_message );
+
+                    $this->store_last_migration_error( $error_message );
+
                     // Failed to pull account information.
-                    return false;
+                    return $error_message;
                 }
+
+                $this->delete_last_migration_error();
 
                 // Delete transient on successful migration.
                 $this->delete_transient_mixed( $transient_key );
@@ -565,6 +590,26 @@
 
                 return true;
             }
+        }
+
+        private function get_migration_error_transient_option_name() {
+            return "fs_license_migration_{$this->_product_id}_last_error";
+        }
+
+        private function store_last_migration_error( $error_message ) {
+            $this->set_transient( $this->get_migration_error_transient_option_name(), $error_message, WP_FS__TIME_24_HOURS_IN_SEC * 30 );
+        }
+
+        function get_last_migration_error() {
+            $error = $this->get_transient( $this->get_migration_error_transient_option_name() );
+
+            return ( ! empty( $error ) ) ?
+                $error :
+                '';
+        }
+
+        private function delete_last_migration_error() {
+            $this->delete_transient( $this->get_migration_error_transient_option_name() );
         }
 
         /**
@@ -675,7 +720,7 @@
                 ) {
                     $success = $this->do_license_migration();
 
-                    if ( $success ) {
+                    if ( true === $success ) {
                         $this->_fs->set_plugin_upgrade_complete();
 
                         return 'success';
