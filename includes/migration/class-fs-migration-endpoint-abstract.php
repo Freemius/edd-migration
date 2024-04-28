@@ -92,7 +92,6 @@
             add_action( 'wp_ajax_fs_store_mapping', array( &$this, '_store_mapping_callback' ) );
             add_action( 'wp_ajax_fs_clear_mapping', array( &$this, '_clear_mapping_callback' ) );
             add_action( 'wp_ajax_fs_fetch_modules', array( &$this, '_fetch_modules' ) );
-            add_action( 'wp_ajax_fs_fetch_module_plans', array( &$this, '_fetch_module_plans' ) );
             add_action( 'wp_ajax_fs_fetch_pricing', array( &$this, '_fetch_pricing' ) );
         }
 
@@ -175,10 +174,32 @@
          *
          * @param string $local_module_id
          *
-         * @return false|number
+         * @return number[]
          */
-        function get_remote_paid_plan_id( $local_module_id ) {
-            return $this->_entity_mapper->get_remote_paid_plan_id( $this->get_local_paid_plan_id( $local_module_id ) );
+        function get_remote_paid_plan_ids( $local_module_id ) {
+            $local_price_ids = array();
+
+            if ( ! edd_has_variable_prices( $local_module_id ) ) {
+                $local_price_ids[] = ( $local_module_id . ':0' );
+            } else {
+                $edd_prices = edd_get_variable_prices( $local_module_id );
+
+                foreach ( $edd_prices as $id => $edd_price ) {
+                    $local_price_ids[] = ( $local_module_id . ':' . $id );
+                }
+            }
+
+            $remote_plan_ids = array();
+
+            foreach ( $local_price_ids as $local_price_id ) {
+                $remote_plan_id = $this->_entity_mapper->get_remote_paid_plan_id( $local_price_id );
+
+                if ( ! empty( $remote_plan_id ) ) {
+                    $remote_plan_ids[] = $remote_plan_id;
+                }
+            }
+
+            return $remote_plan_ids;
         }
 
         /**
@@ -664,7 +685,7 @@
         }
 
         /**
-         * Checks if bundle migration.
+         * Checks if migration child add-ons' licenses to an actual parent product on Freemius. This is specifically relevant for developers that changing their business model from selling add-ons to plans during the migration process.
          *
          * @author Vova Feldman
          * @since  1.1.0
@@ -983,11 +1004,11 @@
             if ( $migration->do_sync( true ) ) {
                 // Success.
                 $module_id = $this->get_remote_module_id( $local_module_id );
-                $plan_id   = $this->get_remote_paid_plan_id( $local_module_id );
+                $plan_ids  = $this->get_remote_paid_plan_ids( $local_module_id );
 
                 $this->shoot_json_success( array(
                     'module_id' => $module_id,
-                    'plan_id'   => $plan_id,
+                    'plan_ids'  => $plan_ids,
                 ) );
             } else {
                 // Failure.
@@ -1029,26 +1050,30 @@
             $module->id = $map['module']['remote'];
             $this->link_entity( $module, $local_module_id );
 
-            $plan     = new FS_Plan();
-            $plan->id = $map['plan']['remote'];
-            $pricing  = new FS_Pricing();
+            $fs_plan    = new FS_Plan();
+            $fs_pricing = new FS_Pricing();
+
             foreach ( $map['pricing'] as $p ) {
-                $pricing->id = $p['remote'];
+                if ( ! isset( $p['remote'] ) || ! isset( $p['remote_plan'] ) ) {
+                    continue;
+                }
 
-                // Link pricing to plan.
-                $this->link_entity( $plan, $p['local'] );
+                // Link FS plan to local pricing.
+                $fs_plan->id = $p['remote_plan'];
+                $this->link_entity( $fs_plan, $p['local'] );
 
-                // Link pricing.
-                $this->link_entity( $pricing, $p['local'] );
+                // Link FS pricing to local pricing.
+                $fs_pricing->id = $p['remote'];
+                $this->link_entity( $fs_pricing, $p['local'] );
             }
 
             // Success.
             $module_id = $this->get_remote_module_id( $local_module_id );
-            $plan_id   = $this->get_remote_paid_plan_id( $local_module_id );
+            $plan_ids  = $this->get_remote_paid_plan_ids( $local_module_id );
 
             $this->shoot_json_success( array(
                 'module_id' => $module_id,
-                'plan_id'   => $plan_id,
+                'plan_ids'  => $plan_ids,
             ) );
         }
 
@@ -1076,22 +1101,6 @@
         }
 
         /**
-         * @author Vova Feldman
-         * @since  1.1.0
-         */
-        public function _fetch_module_plans() {
-            $module_id = $this->require_request_id( 'module_id' );
-
-            if ( ! is_numeric( $module_id ) || intval( $module_id ) != $module_id || $module_id < 0 ) {
-                $this->shoot_json_failure( 'module_id parameter is invalid.' );
-            }
-
-            $result = $this->get_api()->get( "/plugins/{$module_id}/plans.json", true );
-
-            $this->shoot_json_success( $result->plans );
-        }
-
-        /**
          * Helper method for AJAX ID arguments validation.
          *
          * @author Vova Feldman
@@ -1116,14 +1125,14 @@
          * @since  1.1.0
          */
         public function _fetch_pricing() {
-            $ids_params = array( 'module_id', 'plan_id', 'local_module_id' );
+            $ids_params = array( 'module_id', 'local_module_id' );
             $params     = array();
 
             foreach ( $ids_params as $key ) {
                 $params[ $key ] = $this->require_request_id( $key );
             }
 
-            $result = $this->get_api()->get( "/plugins/{$params['module_id']}/plans/{$params['plan_id']}/pricing.json" );
+            $result = $this->get_api()->get( "/plugins/{$params['module_id']}/pricing.json" );
 
             $local_prices = array();
             if ( edd_has_variable_prices( $params['local_module_id'] ) ) {
@@ -1147,8 +1156,37 @@
                     'period'   => 'year',
                 );
             }
+
+            $all_prices   = array();
+            $id_2_pricing = array();
+
+            foreach ( $result->plans as $plan ) {
+                foreach ( $plan->pricing as $pricing ) {
+                    $pricing->plan_name  = $plan->name;
+                    $pricing->plan_title = $plan->title;
+
+                    $id_2_pricing[ $pricing->id ] = $pricing;
+                }
+
+                $all_prices = array_merge( $all_prices, $plan->pricing );
+            }
+
+            foreach ( $local_prices as &$local_price ) {
+                $fs_pricing_id = $this->_entity_mapper->get_remote_pricing_id( $local_price['id'] );
+
+                /**
+                 * Set this property so that the remote pricing will be automatically selected on the pricing collection section.
+                 *
+                 * @author Leo Fajardo
+                 * @since 2.0.1
+                 */
+                $local_price['remote'] = ( ! empty( $fs_pricing_id ) ) ?
+                    $id_2_pricing[ $fs_pricing_id ] :
+                    '';
+            }
+
             $this->shoot_json_success( array(
-                'remote' => $result->pricing,
+                'remote' => $all_prices,
                 'local'  => $local_prices,
             ) );
         }

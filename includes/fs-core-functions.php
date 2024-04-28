@@ -74,30 +74,36 @@
 
     /* Scripts and styles including.
     --------------------------------------------------------------------------------------------*/
-    function fs_enqueue_local_style( $handle, $path, $deps = array(), $ver = false, $media = 'all' ) {
-        global $fs_core_logger;
-        if ( $fs_core_logger->is_on() ) {
-            $fs_core_logger->info( 'handle = ' . $handle . '; path = ' . $path . ';' );
-            $fs_core_logger->info( 'plugin_basename = ' . plugins_url( WP_FS__DIR_CSS . trim( $path, '/' ) ) );
-            $fs_core_logger->info( 'plugins_url = ' . plugins_url( plugin_basename( WP_FS__DIR_CSS . '/' . trim( $path, '/' ) ) ) );
-        }
+    if ( ! function_exists( 'fs_enqueue_local_style' ) ) {
+        function fs_enqueue_local_style( $handle, $path, $deps = array(), $ver = false, $media = 'all' ) {
+            global $fs_core_logger;
+            if ( $fs_core_logger->is_on() ) {
+                $fs_core_logger->info( 'handle = ' . $handle . '; path = ' . $path . ';' );
+                $fs_core_logger->info( 'plugin_basename = ' . plugins_url( WP_FS__DIR_CSS . trim( $path, '/' ) ) );
+                $fs_core_logger->info( 'plugins_url = ' . plugins_url( plugin_basename( WP_FS__DIR_CSS . '/' . trim( $path, '/' ) ) ) );
+            }
 
-        wp_enqueue_style( $handle, plugins_url( plugin_basename( WP_FS__DIR_CSS . '/' . trim( $path, '/' ) ) ), $deps, $ver, $media );
+            wp_enqueue_style( $handle, plugins_url( plugin_basename( WP_FS__DIR_CSS . '/' . trim( $path, '/' ) ) ), $deps, $ver, $media );
+        }
     }
 
-    function fs_enqueue_local_script( $handle, $path, $deps = array(), $ver = false, $in_footer = 'all' ) {
-        global $fs_core_logger;
-        if ( $fs_core_logger->is_on() ) {
-            $fs_core_logger->info( 'handle = ' . $handle . '; path = ' . $path . ';' );
-            $fs_core_logger->info( 'plugin_basename = ' . plugins_url( WP_FS__DIR_JS . trim( $path, '/' ) ) );
-            $fs_core_logger->info( 'plugins_url = ' . plugins_url( plugin_basename( WP_FS__DIR_JS . '/' . trim( $path, '/' ) ) ) );
-        }
+    if ( ! function_exists( 'fs_enqueue_local_script' ) ) {
+        function fs_enqueue_local_script( $handle, $path, $deps = array(), $ver = false, $in_footer = 'all' ) {
+            global $fs_core_logger;
+            if ( $fs_core_logger->is_on() ) {
+                $fs_core_logger->info( 'handle = ' . $handle . '; path = ' . $path . ';' );
+                $fs_core_logger->info( 'plugin_basename = ' . plugins_url( WP_FS__DIR_JS . trim( $path, '/' ) ) );
+                $fs_core_logger->info( 'plugins_url = ' . plugins_url( plugin_basename( WP_FS__DIR_JS . '/' . trim( $path, '/' ) ) ) );
+            }
 
-        wp_enqueue_script( $handle, plugins_url( plugin_basename( WP_FS__DIR_JS . '/' . trim( $path, '/' ) ) ), $deps, $ver, $in_footer );
+            wp_enqueue_script( $handle, plugins_url( plugin_basename( WP_FS__DIR_JS . '/' . trim( $path, '/' ) ) ), $deps, $ver, $in_footer );
+        }
     }
 
-    function fs_img_url( $path, $img_dir = WP_FS__DIR_IMG ) {
-        return plugins_url( plugin_basename( $img_dir . '/' . trim( $path, '/' ) ) );
+    if ( ! function_exists( 'fs_img_url' ) ) {
+        function fs_img_url( $path, $img_dir = WP_FS__DIR_IMG ) {
+            return plugins_url( plugin_basename( $img_dir . '/' . trim( $path, '/' ) ) );
+        }
     }
 
     #--------------------------------------------------------------------------------
@@ -235,104 +241,108 @@
 
     /* Core UI.
     --------------------------------------------------------------------------------------------*/
-    /**
-     * @param string      $slug
-     * @param string      $page
-     * @param string      $action
-     * @param string      $title
-     * @param array       $params
-     * @param bool        $is_primary
-     * @param string|bool $icon_class   Optional class for an icon (since 1.1.7).
-     * @param string|bool $confirmation Optional confirmation message before submit (since 1.1.7).
-     * @param string      $method       Since 1.1.7
-     *
-     * @uses fs_ui_get_action_button()
-     */
-    function fs_ui_action_button(
-        $slug,
-        $page,
-        $action,
-        $title,
-        $params = array(),
-        $is_primary = true,
-        $icon_class = false,
-        $confirmation = false,
-        $method = 'GET'
-    ) {
-        echo fs_ui_get_action_button(
+    if ( ! function_exists( 'fs_ui_action_button' ) ) {
+        /**
+         * @param string      $slug
+         * @param string      $page
+         * @param string      $action
+         * @param string      $title
+         * @param array       $params
+         * @param bool        $is_primary
+         * @param string|bool $icon_class   Optional class for an icon (since 1.1.7).
+         * @param string|bool $confirmation Optional confirmation message before submit (since 1.1.7).
+         * @param string      $method       Since 1.1.7
+         *
+         * @uses fs_ui_get_action_button()
+         */
+        function fs_ui_action_button(
             $slug,
             $page,
             $action,
             $title,
-            $params,
-            $is_primary,
-            $icon_class,
-            $confirmation,
-            $method
-        );
-    }
-
-    /**
-     * @author Vova Feldman (@svovaf)
-     * @since  1.1.7
-     *
-     * @param string      $slug
-     * @param string      $page
-     * @param string      $action
-     * @param string      $title
-     * @param array       $params
-     * @param bool        $is_primary
-     * @param string|bool $icon_class   Optional class for an icon.
-     * @param string|bool $confirmation Optional confirmation message before submit.
-     * @param string      $method
-     *
-     * @return string
-     */
-    function fs_ui_get_action_button(
-        $slug,
-        $page,
-        $action,
-        $title,
-        $params = array(),
-        $is_primary = true,
-        $icon_class = false,
-        $confirmation = false,
-        $method = 'GET'
-    ) {
-        // Prepend icon (if set).
-        $title = ( is_string( $icon_class ) ? '<i class="' . $icon_class . '"></i> ' : '' ) . $title;
-
-        if ( is_string( $confirmation ) ) {
-            return sprintf( '<form action="%s" method="%s"><input type="hidden" name="fs_action" value="%s">%s<a href="#" class="%s" onclick="if (confirm(\'%s\')) this.parentNode.submit(); return false;">%s</a></form>',
-                freemius( $slug )->_get_admin_page_url( $page, $params ),
-                $method,
+            $params = array(),
+            $is_primary = true,
+            $icon_class = false,
+            $confirmation = false,
+            $method = 'GET'
+        ) {
+            echo fs_ui_get_action_button(
+                $slug,
+                $page,
                 $action,
-                wp_nonce_field( $action, '_wpnonce', true, false ),
-                'button' . ( $is_primary ? ' button-primary' : '' ),
+                $title,
+                $params,
+                $is_primary,
+                $icon_class,
                 $confirmation,
-                $title
-            );
-        } else if ( 'GET' !== strtoupper( $method ) ) {
-            return sprintf( '<form action="%s" method="%s"><input type="hidden" name="fs_action" value="%s">%s<a href="#" class="%s" onclick="this.parentNode.submit(); return false;">%s</a></form>',
-                freemius( $slug )->_get_admin_page_url( $page, $params ),
-                $method,
-                $action,
-                wp_nonce_field( $action, '_wpnonce', true, false ),
-                'button' . ( $is_primary ? ' button-primary' : '' ),
-                $title
-            );
-        } else {
-            return sprintf( '<a href="%s" class="%s">%s</a></form>',
-                wp_nonce_url( freemius( $slug )->_get_admin_page_url( $page, array_merge( $params, array( 'fs_action' => $action ) ) ), $action ),
-                'button' . ( $is_primary ? ' button-primary' : '' ),
-                $title
+                $method
             );
         }
     }
 
-    function fs_ui_action_link( $slug, $page, $action, $title, $params = array() ) {
-        ?><a class=""
-             href="<?php echo wp_nonce_url( freemius( $slug )->_get_admin_page_url( $page, array_merge( $params, array( 'fs_action' => $action ) ) ), $action ) ?>"><?php echo $title ?></a><?php
+    if ( ! function_exists( 'fs_ui_get_action_button' ) ) {
+        /**
+         * @author Vova Feldman (@svovaf)
+         * @since  1.1.7
+         *
+         * @param string      $slug
+         * @param string      $page
+         * @param string      $action
+         * @param string      $title
+         * @param array       $params
+         * @param bool        $is_primary
+         * @param string|bool $icon_class   Optional class for an icon.
+         * @param string|bool $confirmation Optional confirmation message before submit.
+         * @param string      $method
+         *
+         * @return string
+         */
+        function fs_ui_get_action_button(
+            $slug,
+            $page,
+            $action,
+            $title,
+            $params = array(),
+            $is_primary = true,
+            $icon_class = false,
+            $confirmation = false,
+            $method = 'GET'
+        ) {
+            // Prepend icon (if set).
+            $title = ( is_string( $icon_class ) ? '<i class="' . $icon_class . '"></i> ' : '' ) . $title;
+
+            if ( is_string( $confirmation ) ) {
+                return sprintf( '<form action="%s" method="%s"><input type="hidden" name="fs_action" value="%s">%s<a href="#" class="%s" onclick="if (confirm(\'%s\')) this.parentNode.submit(); return false;">%s</a></form>',
+                    freemius( $slug )->_get_admin_page_url( $page, $params ),
+                    $method,
+                    $action,
+                    wp_nonce_field( $action, '_wpnonce', true, false ),
+                    'button' . ( $is_primary ? ' button-primary' : '' ),
+                    $confirmation,
+                    $title
+                );
+            } else if ( 'GET' !== strtoupper( $method ) ) {
+                return sprintf( '<form action="%s" method="%s"><input type="hidden" name="fs_action" value="%s">%s<a href="#" class="%s" onclick="this.parentNode.submit(); return false;">%s</a></form>',
+                    freemius( $slug )->_get_admin_page_url( $page, $params ),
+                    $method,
+                    $action,
+                    wp_nonce_field( $action, '_wpnonce', true, false ),
+                    'button' . ( $is_primary ? ' button-primary' : '' ),
+                    $title
+                );
+            } else {
+                return sprintf( '<a href="%s" class="%s">%s</a></form>',
+                    wp_nonce_url( freemius( $slug )->_get_admin_page_url( $page, array_merge( $params, array( 'fs_action' => $action ) ) ), $action ),
+                    'button' . ( $is_primary ? ' button-primary' : '' ),
+                    $title
+                );
+            }
+        }
+
+        function fs_ui_action_link( $slug, $page, $action, $title, $params = array() ) {
+            ?><a class=""
+                 href="<?php echo wp_nonce_url( freemius( $slug )->_get_admin_page_url( $page, array_merge( $params, array( 'fs_action' => $action ) ) ), $action ) ?>"><?php echo $title ?></a><?php
+        }
     }
 
     /*function fs_error_handler($errno, $errstr, $errfile, $errline)
@@ -358,9 +368,11 @@
 
     set_error_handler('fs_error_handler');*/
 
-    function fs_nonce_url( $actionurl, $action = - 1, $name = '_wpnonce' ) {
+    if ( ! function_exists( 'fs_nonce_url' ) ) {
+        function fs_nonce_url( $actionurl, $action = - 1, $name = '_wpnonce' ) {
 //		$actionurl = str_replace( '&amp;', '&', $actionurl );
-        return add_query_arg( $name, wp_create_nonce( $action ), $actionurl );
+            return add_query_arg( $name, wp_create_nonce( $action ), $actionurl );
+        }
     }
 
     if ( ! function_exists( 'fs_starts_with' ) ) {
@@ -491,45 +503,49 @@
 
     #endregion Url Canonization ------------------------------------------------------------------
 
-    function fs_download_image( $from, $to ) {
-        $ch = curl_init( $from );
-        $fp = fopen( fs_normalize_path( $to ), 'wb' );
-        curl_setopt( $ch, CURLOPT_FILE, $fp );
-        curl_setopt( $ch, CURLOPT_HEADER, 0 );
-        curl_exec( $ch );
-        curl_close( $ch );
-        fclose( $fp );
+    if ( ! function_exists( 'fs_download_image' ) ) {
+        function fs_download_image( $from, $to ) {
+            $ch = curl_init( $from );
+            $fp = fopen( fs_normalize_path( $to ), 'wb' );
+            curl_setopt( $ch, CURLOPT_FILE, $fp );
+            curl_setopt( $ch, CURLOPT_HEADER, 0 );
+            curl_exec( $ch );
+            curl_close( $ch );
+            fclose( $fp );
+        }
     }
 
     /* General Utilities
     --------------------------------------------------------------------------------------------*/
 
-    /**
-     * Sorts an array by the value of the priority key.
-     *
-     * @author Daniel Iser (@danieliser)
-     * @since  1.1.7
-     *
-     * @param $a
-     * @param $b
-     *
-     * @return int
-     */
-    function fs_sort_by_priority( $a, $b ) {
+    if ( ! function_exists( 'fs_sort_by_priority' ) ) {
+        /**
+         * Sorts an array by the value of the priority key.
+         *
+         * @author Daniel Iser (@danieliser)
+         * @since  1.1.7
+         *
+         * @param $a
+         * @param $b
+         *
+         * @return int
+         */
+        function fs_sort_by_priority( $a, $b ) {
 
-        // If b has a priority and a does not, b wins.
-        if ( ! isset( $a['priority'] ) && isset( $b['priority'] ) ) {
-            return 1;
-        } // If b has a priority and a does not, b wins.
-        elseif ( isset( $a['priority'] ) && ! isset( $b['priority'] ) ) {
-            return - 1;
-        } // If neither has a priority or both priorities are equal its a tie.
-        elseif ( ( ! isset( $a['priority'] ) && ! isset( $b['priority'] ) ) || $a['priority'] === $b['priority'] ) {
-            return 0;
+            // If b has a priority and a does not, b wins.
+            if ( ! isset( $a['priority'] ) && isset( $b['priority'] ) ) {
+                return 1;
+            } // If b has a priority and a does not, b wins.
+            elseif ( isset( $a['priority'] ) && ! isset( $b['priority'] ) ) {
+                return - 1;
+            } // If neither has a priority or both priorities are equal its a tie.
+            elseif ( ( ! isset( $a['priority'] ) && ! isset( $b['priority'] ) ) || $a['priority'] === $b['priority'] ) {
+                return 0;
+            }
+
+            // If both have priority return the winner.
+            return ( $a['priority'] < $b['priority'] ) ? - 1 : 1;
         }
-
-        // If both have priority return the winner.
-        return ( $a['priority'] < $b['priority'] ) ? - 1 : 1;
     }
 
     #--------------------------------------------------------------------------------

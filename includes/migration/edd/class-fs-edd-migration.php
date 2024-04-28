@@ -64,6 +64,11 @@
          */
         protected $_edd_installs_data;
 
+        /**
+         * @var bool
+         */
+        protected $_is_bundle;
+
         #endregion
 
         #--------------------------------------------------------------------------------
@@ -122,6 +127,11 @@
             $download_id = get_post_meta( $license_id, '_edd_sl_download_id', true );
 
             $this->_edd_license = new EDD_SL_License( $license_id );
+
+            $this->_is_bundle = (
+                'bundle' === edd_get_download_type( $download_id ) ||
+                get_post_meta( $download_id, '_edd_all_access_enabled', true )
+            );
 
             $last_license_payments = edd_get_payments( array(
                 'post__in' => $this->_edd_license->payment_ids,
@@ -556,6 +566,18 @@
             return $this->_edd_renewals[ $index ]->ID;
         }
 
+        /**
+         * Checks if migrating a license that is associated with a bundle.
+         *
+         * @author Vova Feldman
+         * @since  2.0.0
+         *
+         * @return bool
+         */
+        public function local_is_bundle() {
+            return $this->_is_bundle;
+        }
+
         #endregion
 
         #--------------------------------------------------------------------------------
@@ -856,6 +878,37 @@
                 default:
                     return 12;
             }
+        }
+
+        /**
+         * Get subscription cancellation datetime string.
+         *
+         * @author Vova Feldman
+         * @since  1.0.0
+         *
+         * @return null|string
+         */
+        private function get_local_subscription_cancellation_date() {
+            $notes = $this->_edd_subscription->get_notes( 1000 );
+            if ( $notes ) {
+                foreach ( $notes as $key => $note ) {
+                    if ( false !== strpos( $note, 'Subscription' ) &&
+                         false !== strpos( $note, 'cancelled by' )
+                    ) {
+                        $canceled_at = substr( $note, strpos( $note, ' - ' ) );
+
+                        $canceled_at = date_create_from_format( 'F d, Y H:i:s', $canceled_at );
+
+                        if ( empty( $canceled_at ) ) {
+                            return null;
+                        }
+
+                        return date_format( $canceled_at, 'Y-m-d H:i:s' );
+                    }
+                }
+            }
+
+            return null;
         }
 
         /**
@@ -1310,9 +1363,14 @@
                 $subscription['is_sandbox'] = true;
             }
 
-            // @todo Enrich API to accept is_cancelled as an optional argument during migration.
             if ( 'cancelled' === $this->_edd_subscription->get_status() ) {
                 $subscription['is_cancelled'] = true;
+
+                $canceled_at = $this->get_local_subscription_cancellation_date();
+
+                if ( ! empty( $canceled_at ) ) {
+                    $subscription['canceled_at'] = $canceled_at;
+                }
             }
 
             $subscription = array_merge( $subscription, $this->get_purchase_vat_for_api() );

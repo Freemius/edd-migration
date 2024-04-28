@@ -234,46 +234,56 @@
 		}
 	}
 
-	/**
-	 * Leverage backtrace to find caller plugin main file path.
-	 *
-	 * @author Vova Feldman (@svovaf)
-	 * @since  1.0.6
-	 *
-	 * @return string
-	 */
-	function fs_find_caller_plugin_file() {
+	if ( ! function_exists( 'fs_find_caller_plugin_file' ) ) {
 		/**
-		 * All the code below will be executed once on activation.
-		 * If the user changes the main plugin's file name, the file_exists()
-		 * will catch it.
+		 * Leverage backtrace to find caller plugin main file path.
+		 *
+		 * @author Vova Feldman (@svovaf)
+		 * @since  1.0.6
+		 *
+		 * @return string
 		 */
-		if ( ! function_exists( 'get_plugins' ) ) {
-			require_once( ABSPATH . 'wp-admin/includes/plugin.php' );
-		}
-
-		$all_plugins       = get_plugins();
-		$all_plugins_paths = array();
-
-		// Get active plugin's main files real full names (might be symlinks).
-		foreach ( $all_plugins as $relative_path => &$data ) {
-			$all_plugins_paths[] = fs_normalize_path( realpath( WP_PLUGIN_DIR . '/' . $relative_path ) );
-		}
-
-		$plugin_file = null;
-		for ( $i = 1, $bt = debug_backtrace(), $len = count( $bt ); $i < $len; $i ++ ) {
-			if ( in_array( fs_normalize_path( $bt[ $i ]['file'] ), $all_plugins_paths ) ) {
-				$plugin_file = $bt[ $i ]['file'];
-				break;
+		function fs_find_caller_plugin_file() {
+			/**
+			 * All the code below will be executed once on activation.
+			 * If the user changes the main plugin's file name, the file_exists()
+			 * will catch it.
+			 */
+			if ( ! function_exists( 'get_plugins' ) ) {
+				require_once( ABSPATH . 'wp-admin/includes/plugin.php' );
 			}
+	
+			$all_plugins       = fs_get_plugins( true );
+			$all_plugins_paths = array();
+	
+			// Get active plugin's main files real full names (might be symlinks).
+			foreach ( $all_plugins as $relative_path => $data ) {
+				$all_plugins_paths[] = fs_normalize_path( realpath( WP_PLUGIN_DIR . '/' . $relative_path ) );
+			}
+	
+			$plugin_file = null;
+			for ( $i = 1, $bt = debug_backtrace(), $len = count( $bt ); $i < $len; $i ++ ) {
+				if ( empty( $bt[ $i ]['file'] ) ) {
+					continue;
+				}
+	
+				if ( in_array( fs_normalize_path( $bt[ $i ]['file'] ), $all_plugins_paths ) ) {
+					$plugin_file = $bt[ $i ]['file'];
+					break;
+				}
+			}
+	
+			if ( is_null( $plugin_file ) ) {
+				// Throw an error to the developer in case of some edge case dev environment.
+				wp_die(
+					'Freemius SDK couldn\'t find the plugin\'s main file. Please contact sdk@freemius.com with the current error.',
+					'Error',
+					array( 'back_link' => true )
+				);
+			}
+	
+			return $plugin_file;
 		}
-
-		if ( is_null( $plugin_file ) ) {
-			// Throw an error to the developer in case of some edge case dev environment.
-			wp_die( __fs( 'failed-finding-main-path' ), __fs( 'error' ), array( 'back_link' => true ) );
-		}
-
-		return $plugin_file;
 	}
 
 	require_once dirname( __FILE__ ) . '/supplements/fs-essential-functions-1.1.7.1.php';

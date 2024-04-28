@@ -376,13 +376,13 @@
             }
 
             if ( ! is_object( $customer ) ) {
-                $result = $this->api_call( "/users/{$customer_id}.json" );
+                $result = $this->fetch_user_from_freemius_by_id( $customer_id );
 
-                if ( $this->log_on_error( $result, "Failed to fetch user ({$customer_id}) from Freemius." ) ) {
+                if ( ! is_object( $result ) ) {
                     return false;
                 }
 
-                $customer = new FS_User( $result );
+                $customer = $result;
             }
 
             return array(
@@ -748,6 +748,16 @@
          */
         abstract protected function get_local_subscription_renewal_id( $index = 0 );
 
+        /**
+         * Checks if migrating a license that is associated with a bundle.
+         *
+         * @author Vova Feldman
+         * @since  2.0.0
+         *
+         * @return bool
+         */
+        abstract public function local_is_bundle();
+
         #endregion
 
         #--------------------------------------------------------------------------------
@@ -847,7 +857,7 @@
                         }
 
                         throw new FS_Endpoint_Exception(
-                            'Freemius migration error: ' . $result->error->message,
+                            'Freemius migration error: ' . $result->error->message . ' API Result: ' . var_export( $result, true ),
                             $result->error->code,
                             $result->error->http
                         );
@@ -858,6 +868,23 @@
             }
 
             return $result;
+        }
+
+        /**
+         * @author Vova Feldman
+         *
+         * @param number $user_freemius_id
+         *
+         * @return false|\FS_User
+         */
+        public function fetch_user_from_freemius_by_id( $user_freemius_id ) {
+            $result = $this->api_call( "/users/{$user_freemius_id}.json" );
+
+            if ( $this->log_on_error( $result, "Failed to fetch user ({$user_freemius_id}) from Freemius." ) ) {
+                return false;
+            }
+
+            return new FS_User( $result );
         }
 
         #endregion
